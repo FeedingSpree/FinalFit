@@ -7,7 +7,7 @@ export const mockDataTeam = [
     email: "jonsnow@gmail.com",
     age: 35,
     phone: "(665)121-5454",
-    access: "admin",
+    access: "OSA",
   },
   {
     id: 2,
@@ -15,7 +15,7 @@ export const mockDataTeam = [
     email: "cerseilannister@gmail.com",
     age: 42,
     phone: "(421)314-2288",
-    access: "manager",
+    access: "SOHAS",
   },
   {
     id: 3,
@@ -31,7 +31,7 @@ export const mockDataTeam = [
     email: "anyastark@gmail.com",
     age: 16,
     phone: "(921)425-6742",
-    access: "admin",
+    access: "OSA",
   },
   {
     id: 5,
@@ -47,7 +47,7 @@ export const mockDataTeam = [
     email: "evermelisandre@gmail.com",
     age: 150,
     phone: "(232)545-6483",
-    access: "manager",
+    access: "SOHAS",
   },
   {
     id: 7,
@@ -71,7 +71,7 @@ export const mockDataTeam = [
     email: "harveyroxie@gmail.com",
     age: 65,
     phone: "(444)555-6239",
-    access: "admin",
+    access: "OSA",
   },
 ];
 
@@ -268,54 +268,63 @@ export const mockDataInvoices = [
 
 export const mockTransactions = [
   {
-    txId: "01e4dsa",
     user: "johndoe",
     date: "2021-09-01",
-    cost: "43.95",
+    time: "02:23 PM",
+    bldg: "Building 3",
+    floor: "Floor 2",
   },
   {
-    txId: "0315dsaa",
     user: "jackdower",
     date: "2022-04-01",
-    cost: "133.45",
+    time: "09:12 AM",
+    bldg: "Building 1",
+    floor: "Floor 5",
   },
   {
-    txId: "01e4dsa",
     user: "aberdohnny",
     date: "2021-09-01",
-    cost: "43.95",
+    time: "10:45 PM",
+    bldg: "Building 5",
+    floor: "Floor 1",
   },
   {
-    txId: "51034szv",
     user: "goodmanave",
     date: "2022-11-05",
-    cost: "200.95",
+    time: "05:30 PM",
+    bldg: "Building 2",
+    floor: "Floor 4",
   },
   {
-    txId: "0a123sb",
     user: "stevebower",
     date: "2022-11-02",
-    cost: "13.55",
+    time: "08:05 AM",
+    bldg: "Building 6",
+    floor: "Floor 3",
   },
   {
-    txId: "01e4dsa",
     user: "aberdohnny",
     date: "2021-09-01",
-    cost: "43.95",
+    time: "07:18 PM",
+    bldg: "Building 4",
+    floor: "Floor 6",
   },
   {
-    txId: "120s51a",
     user: "wootzifer",
     date: "2019-04-15",
-    cost: "24.20",
+    time: "11:50 PM",
+    bldg: "Building 1",
+    floor: "Floor 2",
   },
   {
-    txId: "0315dsaa",
     user: "jackdower",
     date: "2022-04-01",
-    cost: "133.45",
+    time: "12:34 PM",
+    bldg: "Building 3",
+    floor: "Floor 5",
   },
 ];
+
 
 export const mockBarData = [
   {
@@ -430,167 +439,96 @@ export const mockPieData = [
   },
 ];
 
+
 export const mockLineData = [
   {
-    id: "japan",
+    id: "shorts",
     color: tokens("dark").greenAccent[500],
     data: [
-      {
-        x: "plane",
-        y: 101,
-      },
-      {
-        x: "helicopter",
-        y: 75,
-      },
-      {
-        x: "boat",
-        y: 36,
-      },
-      {
-        x: "train",
-        y: 216,
-      },
-      {
-        x: "subway",
-        y: 35,
-      },
-      {
-        x: "bus",
-        y: 236,
-      },
-      {
-        x: "car",
-        y: 88,
-      },
-      {
-        x: "moto",
-        y: 232,
-      },
-      {
-        x: "bicycle",
-        y: 281,
-      },
-      {
-        x: "horse",
-        y: 1,
-      },
-      {
-        x: "skateboard",
-        y: 35,
-      },
-      {
-        x: "others",
-        y: 14,
-      },
+      { x: "January", 
+        y: 101 },
+      { x: "February", 
+        y: 75 },
+      { x: "March", 
+        y: 36 },
+      { x: "April", 
+        y: 216 },
+      { x: "May", 
+        y: 35 },
+      { x: "June", 
+        y: 236 },
+      { x: "July", 
+        y: 88 },
+      { x: "August", 
+        y: 232 },
+      { x: "September", 
+        y: 281 },
+      { x: "October", 
+        y: 1 },
+      { x: "November", 
+        y: 35 },
+      { x: "December", 
+        y: 14 },
     ],
   },
   {
-    id: "france",
+    id: "ripped jeans",
     color: tokens("dark").blueAccent[300],
     data: [
-      {
-        x: "plane",
-        y: 212,
-      },
-      {
-        x: "helicopter",
-        y: 190,
-      },
-      {
-        x: "boat",
-        y: 270,
-      },
-      {
-        x: "train",
-        y: 9,
-      },
-      {
-        x: "subway",
-        y: 75,
-      },
-      {
-        x: "bus",
-        y: 175,
-      },
-      {
-        x: "car",
-        y: 33,
-      },
-      {
-        x: "moto",
-        y: 189,
-      },
-      {
-        x: "bicycle",
-        y: 97,
-      },
-      {
-        x: "horse",
-        y: 87,
-      },
-      {
-        x: "skateboard",
-        y: 299,
-      },
-      {
-        x: "others",
-        y: 251,
-      },
+      { x: "January", 
+        y: 212 },
+      { x: "February", 
+        y: 190 },
+      { x: "March", 
+        y: 270 },
+      { x: "April", 
+        y: 9 },
+      { x: "May", 
+        y: 75 },
+      { x: "June", 
+        y: 175 },
+      { x: "July", 
+        y: 33 },
+      { x: "August", 
+        y: 189 },
+      { x: "September", 
+        y: 97 },
+      { x: "October", 
+        y: 87 },
+      { x: "November", 
+        y: 299 },
+      { x: "December", 
+        y: 251 },
     ],
   },
   {
-    id: "us",
+    id: "hats",
     color: tokens("dark").redAccent[200],
     data: [
-      {
-        x: "plane",
-        y: 191,
-      },
-      {
-        x: "helicopter",
-        y: 136,
-      },
-      {
-        x: "boat",
-        y: 91,
-      },
-      {
-        x: "train",
-        y: 190,
-      },
-      {
-        x: "subway",
-        y: 211,
-      },
-      {
-        x: "bus",
-        y: 152,
-      },
-      {
-        x: "car",
-        y: 189,
-      },
-      {
-        x: "moto",
-        y: 152,
-      },
-      {
-        x: "bicycle",
-        y: 8,
-      },
-      {
-        x: "horse",
-        y: 197,
-      },
-      {
-        x: "skateboard",
-        y: 107,
-      },
-      {
-        x: "others",
-        y: 170,
-      },
+      { x: "January", 
+        y: 191 },
+      { x: "February", 
+        y: 136 },
+      { x: "March", 
+        y: 91 },
+      { x: "April", 
+        y: 190 },
+      { x: "May", 
+        y: 211 },
+      { x: "June", 
+        y: 152 },
+      { x: "July", 
+        y: 189 },
+      { x: "August", 
+        y: 152 },
+      { x: "September", 
+        y: 8 },
+      { x: "October", 
+        y: 197 },
+      { x: "November", 
+        y: 107 },
+      { x: "December", 
+        y: 170 },
     ],
   },
 ];
