@@ -199,6 +199,99 @@ export const mockDataContacts = [
   },
 ];
 
+export const mockAuditLogs = [
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG, 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec. 2024",
+    complianceStatus: "Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec. 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec, 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+  {
+    id: "EKG464SJFN17",
+    violation: "Dress Code",
+    buildingNumber: "BLDG. 5",
+    floorNumber: "87956621",
+    date: "15 Dec. 2024",
+    complianceStatus: "• Pending",
+    time: "12:30 PM",
+  },
+];
+
 export const mockDataInvoices = [
   {
     id: 1,
@@ -325,7 +418,6 @@ export const mockTransactions = [
   },
 ];
 
-
 export const mockBarData = [
   {
     country: "AD",
@@ -438,7 +530,6 @@ export const mockPieData = [
     color: "hsl(344, 70%, 50%)",
   },
 ];
-
 
 export const mockLineData = [
   {
