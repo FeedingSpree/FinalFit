@@ -1,0 +1,3 @@
+[submodule "path/to/integration"]
+	path = path/to/integration
+	url = https://github.com/AKaraeski/sign-in-up-page.git

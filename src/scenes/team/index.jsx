@@ -48,9 +48,9 @@ const Team = () => {
             display="flex"
             justifyContent="center"
             backgroundColor={
-              access === "admin"
+              access === "OSA"
                 ? colors.greenAccent[600]
-                : access === "manager"
+                : access === "SOHAS"
                 ? colors.greenAccent[700]
                 : colors.greenAccent[700]
             }
@@ -70,7 +70,7 @@ const Team = () => {
 
   return (
     <Box m="20px">
-      <Header title="TEAM" subtitle="Managing the Team Members" />
+      <Header title="Accounts" subtitle="Managing the Team Members" />
       <Box
         m="40px 0 0 0"
         height="75vh"
