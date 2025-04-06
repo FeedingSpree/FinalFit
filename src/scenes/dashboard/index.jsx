@@ -131,7 +131,7 @@ const Dashboard = () => {
           <Box
             mt="25px"
             p="0 30px"
-            display="flex "
+            display="flex"
             justifyContent="space-between"
             alignItems="center"
           >
@@ -175,31 +175,30 @@ const Dashboard = () => {
             </Typography>
           </Box>
           {mockTransactions.map((transaction, i) => (
-          <Box
-            key={`${transaction.bldg}-${transaction.floor}-${i}`}
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            borderBottom={`4px solid ${colors.primary[500]}`}
-            p="15px"
-          >
-            <Box>
-              <Typography
-                color={colors.greenAccent[500]}
-                variant="h5"
-                fontWeight="600"
-              >
-                {transaction.bldg}
-              </Typography>
-              <Typography color={colors.grey[300]} variant="body2">
-                {transaction.floor}
-              </Typography>
+            <Box
+              key={`${transaction.bldg}-${transaction.floor}-${i}`}
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              borderBottom={`4px solid ${colors.primary[500]}`}
+              p="15px"
+            >
+              <Box>
+                <Typography
+                  color={colors.greenAccent[500]}
+                  variant="h5"
+                  fontWeight="600"
+                >
+                  {transaction.bldg}
+                </Typography>
+                <Typography color={colors.grey[300]} variant="body2">
+                  {transaction.floor}
+                </Typography>
+              </Box>
+              <Box color={colors.grey[100]}>{transaction.date}</Box>
+              <Box color={colors.grey[100]}>{transaction.time}</Box>
             </Box>
-            <Box color={colors.grey[100]}>{transaction.date}</Box>
-            <Box color={colors.grey[100]}>{transaction.time}</Box>
-          </Box>
-        ))}
-
+          ))}
         </Box>
 
         {/* ROW 3 */}
@@ -248,8 +247,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-<<<<<<< HEAD
-  
-=======
-  
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page)

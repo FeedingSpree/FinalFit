@@ -14,6 +14,7 @@ import FAQ from "./scenes/faq";
 import Geography from "./scenes/geography";
 import Calendar from "./scenes/calendar/calendar";
 import LiveFeed from "./scenes/Live Feed"; // Import the Live Feed page
+import SignInUpPage from "./scenes/sign-in-up-page/SignInUpPage"; // Import SignInUpPage component
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from "./theme";
 
@@ -25,25 +26,40 @@ function App() {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <div className="app">
-          <Sidebar isSidebar={isSidebar} />
-          <main className="content">
-            <Topbar setIsSidebar={setIsSidebar} />
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/contacts" element={<Contacts />} />
-              <Route path="/invoices" element={<Invoices />} />
-              <Route path="/form" element={<Form />} />
-              <Route path="/bar" element={<Bar />} />
-              <Route path="/pie" element={<Pie />} />
-              <Route path="/line" element={<Line />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/calendar" element={<Calendar />} />
-              <Route path="/geography" element={<Geography />} />
-              <Route path="/live-feed" element={<LiveFeed />} /> {/* Add the Live Feed route */}
-            </Routes>
-          </main>
+        <div className="app" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+          <Routes>
+            <Route path="/" element={<SignInUpPage />} />
+            <Route path="/dashboard" element={
+              <>
+                <Sidebar isSidebar={isSidebar} />
+                <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
+                  <Topbar setIsSidebar={setIsSidebar} />
+                  <Dashboard />
+                </main>
+              </>
+            } />
+            <Route path="/*" element={
+              <>
+                <Sidebar isSidebar={isSidebar} />
+                <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
+                  <Topbar setIsSidebar={setIsSidebar} />
+                  <Routes>
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/contacts" element={<Contacts />} />
+                    <Route path="/invoices" element={<Invoices />} />
+                    <Route path="/form" element={<Form />} />
+                    <Route path="/bar" element={<Bar />} />
+                    <Route path="/pie" element={<Pie />} />
+                    <Route path="/line" element={<Line />} />
+                    <Route path="/faq" element={<FAQ />} />
+                    <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/geography" element={<Geography />} />
+                    <Route path="/live-feed" element={<LiveFeed />} /> {/* Add the Live Feed route */}
+                  </Routes>
+                </main>
+              </>
+            } />
+          </Routes>
         </div>
       </ThemeProvider>
     </ColorModeContext.Provider>

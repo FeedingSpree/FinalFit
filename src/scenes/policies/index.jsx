@@ -1,4 +1,3 @@
-<<<<<<< HEAD:src/scenes/invoices/index.jsx
 import React, { useState } from 'react';
 import { Box, Typography, useTheme, Button, Modal, TextField, Snackbar, Alert, IconButton } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
@@ -63,85 +62,13 @@ const AuditLogs = () => {
 
   const columns = [
     { field: "id", headerName: "LOGID" },
-=======
-import { Box } from "@mui/material";
-import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { tokens } from "../../theme";
-import { mockDataContacts } from "../../data/mockData";
-import Header from "../../components/Header";
-import { useTheme } from "@mui/material";
-
-const Contacts = () => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-
-  const columns = [
-    { field: "id", headerName: "ID", flex: 0.5 },
-    { field: "registrarId", headerName: "Registrar ID" },
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page):src/scenes/policies/index.jsx
-    {
-      field: "violation",
-      headerName: "VIOLATION",
-      flex: 1,
-      cellClassName: "violation-column--cell",
-    },
-    {
-<<<<<<< HEAD:src/scenes/invoices/index.jsx
-      field: "buildingNumber",
-      headerName: "BUILDING NUMBER",
-=======
-      field: "age",
-      headerName: "Age",
-      type: "number",
-      headerAlign: "left",
-      align: "left",
-    },
-    {
-      field: "phone",
-      headerName: "Phone Number",
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page):src/scenes/policies/index.jsx
-      flex: 1,
-    },
-    {
-      field: "floorNumber",
-      headerName: "FLOOR NUMBER",
-      flex: 1,
-    },
-    {
-<<<<<<< HEAD:src/scenes/invoices/index.jsx
-      field: "date",
-      headerName: "DATE",
-=======
-      field: "address",
-      headerName: "Address",
-      flex: 1,
-    },
-    {
-      field: "city",
-      headerName: "City",
-      flex: 1,
-    },
-    {
-      field: "zipCode",
-      headerName: "Zip Code",
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page):src/scenes/policies/index.jsx
-      flex: 1,
-    },
-    {
-      field: "complianceStatus",
-      headerName: "COMPLIANCE STATUS",
-      flex: 1,
-    },
-    {
-      field: "time",
-      headerName: "TIME",
-      flex: 1,
-    },
-    {
-      field: "actions",
-      headerName: "Actions",
-      flex: 1,
-      renderCell: (params) => (
+    { field: "violation", headerName: "VIOLATION", flex: 1, cellClassName: "violation-column--cell" },
+    { field: "buildingNumber", headerName: "BUILDING NUMBER" },
+    { field: "floorNumber", headerName: "FLOOR NUMBER", flex: 1 },
+    { field: "date", headerName: "DATE", flex: 1 },
+    { field: "complianceStatus", headerName: "COMPLIANCE STATUS", flex: 1 },
+    { field: "time", headerName: "TIME", flex: 1 },
+    { field: "actions", headerName: "Actions", flex: 1, renderCell: (params) => (
         <Box>
           <Button
             variant="contained"
@@ -161,7 +88,6 @@ const Contacts = () => {
 
   return (
     <Box m="20px">
-<<<<<<< HEAD:src/scenes/invoices/index.jsx
       <Header title="Audit Logs" subtitle="List of Violators" />
       <Button
         variant="contained"
@@ -180,10 +106,6 @@ const Contacts = () => {
       >
         Delete Selected
       </Button>
-=======
-      <Header
-        title="Policies" subtitle="List of Polices"/>
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page):src/scenes/policies/index.jsx
       <Box
         m="40px 0 0 0"
         height="75vh"
@@ -217,16 +139,10 @@ const Contacts = () => {
         }}
       >
         <DataGrid
-<<<<<<< HEAD:src/scenes/invoices/index.jsx
           checkboxSelection
           rows={logs}
           columns={columns}
           onSelectionModelChange={(ids) => setSelectedRows(ids)}
-=======
-          rows={mockDataContacts}
-          columns={columns}
-          components={{ Toolbar: GridToolbar }}
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page):src/scenes/policies/index.jsx
         />
       </Box>
       <Modal
@@ -334,7 +250,6 @@ const Contacts = () => {
   );
 };
 
-<<<<<<< HEAD:src/scenes/invoices/index.jsx
 const modalStyle = {
   position: 'absolute',
   top: '50%',
@@ -347,6 +262,3 @@ const modalStyle = {
 };
 
 export default AuditLogs;
-=======
-export default Contacts;
->>>>>>> 46fb0b4 (Committing all local changes including new sign-in-up-page):src/scenes/policies/index.jsx
