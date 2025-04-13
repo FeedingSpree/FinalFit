@@ -11,6 +11,12 @@ import Form from "./scenes/form";
 import Line from "./scenes/line";
 import Pie from "./scenes/pie";
 import FAQ from "./scenes/faq";
+import UTest from "./scenes/test/userTest";
+import MTest from "./scenes/test/managementTest";
+import OTest from "./scenes/test/osaTest";
+import STest from "./scenes/test/sohasTest";
+import VTest from "./scenes/test/violationLogsTest";
+import TTest from "./scenes/test/userLogsTest";
 import Geography from "./scenes/geography";
 import Calendar from "./scenes/calendar/calendar";
 import LiveFeed from "./scenes/Live Feed"; // Import the Live Feed page
@@ -18,7 +24,7 @@ import SignInUpPage from "./scenes/sign-in-up-page/SignInUpPage"; // Import Sign
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from "./theme";
 
-function App() {
+function App() { 
   const [theme, colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
 
@@ -37,7 +43,7 @@ function App() {
                   <Dashboard />
                 </main>
               </>
-            } />
+            } /> 
             <Route path="/*" element={
               <>
                 <Sidebar isSidebar={isSidebar} />
@@ -45,6 +51,12 @@ function App() {
                   <Topbar setIsSidebar={setIsSidebar} />
                   <Routes>
                     <Route path="/team" element={<Team />} />
+                    <Route path="/Utest" element={<UTest />} />
+                    <Route path="/Mtest" element={<MTest />} />
+                    <Route path="/Otest" element={<OTest />} />
+                    <Route path="/Stest" element={<STest />} />
+                    <Route path="/Vtest" element={<VTest />} />
+                    <Route path="/Ttest" element={<TTest />} />
                     <Route path="/contacts" element={<Contacts />} />
                     <Route path="/invoices" element={<Invoices />} />
                     <Route path="/form" element={<Form />} />
