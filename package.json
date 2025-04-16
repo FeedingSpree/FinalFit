@@ -27,7 +27,9 @@
     "@testing-library/user-event": "^13.5.0",
     "ajv": "^6.12.6",
     "chart.js": "^3.9.1",
+    "concurrently": "^8.2.2",
     "d3-color": "^3.1.0",
+    "dotenv": "^16.5.0",
     "firebase": "^11.6.0",
     "formik": "^2.4.6",
     "nth-check": "^2.1.1",
@@ -45,7 +47,9 @@
     "yup": "^0.32.11"
   },
   "scripts": {
-    "start": "set PORT=5000 && react-scripts start",
+    "start": "concurrently \"npm run start-python\" \"npm run start-react\"",
+    "start-python": ".\\startup.bat",
+    "start-react": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

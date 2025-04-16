@@ -27,7 +27,11 @@ const Team = () => {
 
   // Define columns for the DataGrid
   const columns = [
-    { field: "id", headerName: "ID" },
+    { 
+      field: "id", 
+      headerName: "Account ID",
+      flex: 1
+    },
     {
       field: "first_name",
       headerName: "Name",
@@ -40,7 +44,6 @@ const Team = () => {
       headerName: "Username",
       flex: 1,
     },
- 
     {
       field: "accessLevel",
       headerName: "Access Level",
