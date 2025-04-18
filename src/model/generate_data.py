@@ -12,10 +12,12 @@ db = firestore.client()
 def generate_violation_id(date_obj):
     date_part = date_obj.strftime("%m%d%y")  # MMDDYY format
     random_part = ''.join(random.choices(string.ascii_uppercase, k=4))
-    return f"VIO{date_part}{random_part}"
+    #return f"VIO{date_part}{random_part}"
+    return f"NV{date_part}{random_part}"
 
 def generate_violation_data(num_entries=200):
-    violations = ["cap", "shorts", "sleeveless"]
+    #violations = ["cap", "shorts", "sleeveless"]
+    non_violations = ["Male PE Uniform", "Female PE Uniform", "Male Regular Uniform", "Female Regular Uniform"]
     current_year = datetime.now().year
     data = []
 
@@ -32,7 +34,8 @@ def generate_violation_data(num_entries=200):
         date_obj = date_obj.replace(hour=hour, minute=minute, second=second)
 
         violation_id = generate_violation_id(date_obj)
-        violation = random.choice(violations)
+        #violation = random.choice(violations)
+        non_violation = random.choice(non_violations)
         building_number = random.randint(1, 6)
         floor_number = random.randint(1, 6)
         camera_number = random.randint(1, 6)
@@ -41,8 +44,8 @@ def generate_violation_data(num_entries=200):
         time_str = date_obj.strftime("%H:%M:%S")
 
         entry = {
-            "violation_id": violation_id,
-            "violation": violation,
+            "detection_id": violation_id,
+            "detection": non_violation,
             "building_number": building_number,
             "floor_number": floor_number,
             "camera_number": camera_number,
@@ -53,9 +56,9 @@ def generate_violation_data(num_entries=200):
 
     return data
 
-def upload_to_firestore(data, collection_name="violationlogs"):
+def upload_to_firestore(data, collection_name="nonviolationlogs"):
     for entry in data:
-        doc_ref = db.collection(collection_name).document(entry["violation_id"])
+        doc_ref = db.collection(collection_name).document(entry["detection_id"])
         doc_ref.set(entry)
     print(f"{len(data)} documents uploaded to Firestore.")
 

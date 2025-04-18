@@ -2,14 +2,9 @@ import { Box, Button, IconButton, MenuItem, Select, Typography, useTheme } from 
 import { tokens } from "../../theme";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import Header from "../../components/Header";
-import StatBox from "../../components/StatBox";
-import SchoolIcon from "@mui/icons-material/School";
-import WarningIcon from "@mui/icons-material/Warning";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import RepeatIcon from "@mui/icons-material/Repeat";
 import { useEffect, useState } from "react";
 import { getViolationLogs } from "../../services/violationLogsService.ts";
-import { db } from "../../firebase.tsx";
+import { getDetectionLogs } from "../../services/detectionLogsService.ts";
 import {
   LineChart,
   Line,
@@ -22,22 +17,31 @@ import {
   PieChart,
   Pie,
   Cell,
+  BarChart,
+  Bar,
 } from "recharts";
 
 const Dashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [violations, setViolations] = useState([]);
-  const [timeframe, setTimeframe] = useState("month");
-  const [pieTimeframe, setPieTimeframe] = useState("year");
+  const [detections, setDetections] = useState([]);
+  const [timeframe, setTimeframe] = useState("week");
+  const [pieTimeframe, setPieTimeframe] = useState("week");
+  const [barTimeframe, setBarTimeframe] = useState("week");
+  const [uniformTimeframe, setUniformTimeframe] = useState("week");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const logs = await getViolationLogs();
-        setViolations(logs);
+        const [violationLogs, detectionLogs] = await Promise.all([
+          getViolationLogs(),
+          getDetectionLogs()
+        ]);
+        setViolations(violationLogs);
+        setDetections(detectionLogs);
       } catch (error) {
-        console.error("Error fetching violation logs:", error);
+        console.error("Error fetching logs:", error);
       }
     };
     fetchData();
@@ -171,7 +175,6 @@ const Dashboard = () => {
           if (!grouped[key]) {
             grouped[key] = { name: key, cap: 0, shorts: 0, sleeveless: 0 };
           }
-    
           if (v.violation === "cap") grouped[key].cap += 1;
           if (v.violation === "shorts") grouped[key].shorts += 1;
           if (v.violation === "sleeveless") grouped[key].sleeveless += 1;
@@ -180,14 +183,13 @@ const Dashboard = () => {
     
       const months = [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"
       ];
       return months.map((month) => grouped[month] || { name: month, cap: 0, shorts: 0, sleeveless: 0 });
     }
-  
     return Object.values(grouped);
   };
-
+  // PIE CHART
   const calculateViolationsRatio = () => {
     const filteredViolations = violations.filter(v => {
       const violationDate = new Date(`${v.date}T${v.time}`);
@@ -226,12 +228,132 @@ const Dashboard = () => {
       color: COLORS[index]
     }));
   };
+  // BAR CHART
+  const calculateViolationRanking = () => {
+    const filteredViolations = violations.filter(v => {
+      const violationDate = new Date(`${v.date}T${v.time}`);
+      const today = new Date();
+
+      if (barTimeframe === "week") {
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+        return violationDate >= weekAgo && violationDate <= today;
+      }
+      
+      if (barTimeframe === "month") {
+        const monthAgo = new Date();
+        monthAgo.setMonth(today.getMonth() - 1);
+        return violationDate >= monthAgo && violationDate <= today;
+      }
+      
+      if (barTimeframe === "year") {
+        return violationDate.getFullYear() === today.getFullYear();
+      }
+
+      return true;
+    });
+
+    const totals = filteredViolations.reduce((acc, violation) => {
+      const type = violation.violation;
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(totals)
+      .map(([name, value]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        value
+      }))
+      .sort((a, b) => b.value - a.value); // Sort by value in descending order
+  };
+
+  const calculateUniformDetections = () => {
+    const filteredDetections = detections.filter(d => {
+      const detectionDate = new Date(`${d.date}T${d.time}`);
+      const today = new Date();
+
+      if (uniformTimeframe === "year") {
+        return detectionDate.getFullYear() === today.getFullYear();
+      }
+      if (uniformTimeframe === "week") {
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 7);
+        return detectionDate >= weekAgo && detectionDate <= today;
+      }
+      
+      if (uniformTimeframe === "month") {
+        const monthAgo = new Date();
+        monthAgo.setMonth(today.getMonth() - 1);
+        return detectionDate >= monthAgo && detectionDate <= today;
+      }
+    });
+
+    // For year view, group by months
+    if (uniformTimeframe === "year") {
+      const grouped = {};
+      const today = new Date();
+
+      filteredDetections.forEach((detection) => {
+        const detectionDate = new Date(`${detection.date}T${detection.time}`);
+        const year = today.getFullYear();
+        
+        if (detectionDate.getFullYear() === year) {
+          const key = detectionDate.toLocaleString("default", { month: "short" });
+          
+          if (!grouped[key]) {
+            grouped[key] = { 
+              name: key, 
+              male: 0, 
+              female: 0 
+            };
+          }
+
+          if (detection.detection.includes("Male")) {
+            grouped[key].male++;
+          } else if (detection.detection.includes("Female")) {
+            grouped[key].female++;
+          }
+        }
+      });
+
+      const months = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"
+      ];
+
+      return months.map((month) => 
+        grouped[month] || { name: month, male: 0, female: 0 }
+      );
+    }
+
+    // For week and month views
+    const totals = {
+      "PE Uniform": { name: "PE Uniform", male: 0, female: 0 },
+      "Regular Uniform": { name: "Regular Uniform", male: 0, female: 0 }
+    };
+
+    filteredDetections.forEach(detection => {
+      if (detection && detection.detection) {
+        if (detection.detection.includes("Male PE")) {
+          totals["PE Uniform"].male++;
+        } else if (detection.detection.includes("Female PE")) {
+          totals["PE Uniform"].female++;
+        } else if (detection.detection.includes("Male Regular")) {
+          totals["Regular Uniform"].male++;
+        } else if (detection.detection.includes("Female Regular")) {
+          totals["Regular Uniform"].female++;
+        }
+      }
+    });
+
+    return Object.values(totals);
+  };
 
   return (
     <Box m="20px">
       {/* HEADER */}
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Header title="DASHBOARD" subtitle="Welcome to your dashboard" />
+        <Header title="Dashboard"/>
         <Box>
           <Button
             sx={{
@@ -252,77 +374,15 @@ const Dashboard = () => {
       <Box
         display="grid"
         gridTemplateColumns="repeat(12, 1fr)"
-        gridAutoRows="140px"
+        gridAutoRows="110px"
         gap="20px"
       >
-        {/* STAT BOXES */}
-        <Box
-          gridColumn="span 3"
-          backgroundColor={colors.primary[400]}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <StatBox
-            title="157,367"
-            subtitle="TOTAL STUDENTS MONITORED"
-            progress="0.75"
-            increase="+6.7%"
-            icon={<SchoolIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
-          />
-        </Box>
-        <Box
-          gridColumn="span 3"
-          backgroundColor={colors.primary[400]}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <StatBox
-            title="9,741"
-            subtitle="DRESS CODE VIOLATIONS"
-            progress="0.50"
-            increase="-12.5%"
-            icon={<WarningIcon sx={{ color: colors.redAccent[600], fontSize: "26px" }} />}
-          />
-        </Box>
-        <Box
-          gridColumn="span 3"
-          backgroundColor={colors.primary[400]}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <StatBox
-            title="9.73%"
-            subtitle="COMPLIANCE RATE"
-            progress="0.30"
-            increase="+3.5%"
-            icon={<CheckCircleIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
-          />
-        </Box>
-        <Box
-          gridColumn="span 3"
-          backgroundColor={colors.primary[400]}
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-        >
-          <StatBox
-            title="81.94%"
-            subtitle="REPEATED OFFENDERS"
-            progress="0.80"
-            increase="+11%"
-            icon={<RepeatIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
-          />
-        </Box>
-
         {/* VIOLATIONS CHART & RIGHT PANEL */}
         <Box
           gridColumn="span 12"
           gridRow="span 3"
           display="grid"
-          gridTemplateColumns="2fr 1fr" // Split into 2/3 and 1/3
+          gridTemplateColumns="2fr 1fr"
           gap="20px"
         >
           {/* VIOLATIONS CHART */}
@@ -350,10 +410,10 @@ const Dashboard = () => {
                 <MenuItem value="year">This Year</MenuItem>
               </Select>
             </Box>
-            <Box height="400px" mt="20px">
+            <Box height="260px" mt="25px">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={formatData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
@@ -391,18 +451,20 @@ const Dashboard = () => {
                 <MenuItem value="year">This Year</MenuItem>
               </Select>
             </Box>
-            <Box height="400px" display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+            <Box height="260px" mt="25px" display="flex" flexDirection="column" alignItems="center" justifyContent="center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={calculateViolationsRatio()}
                     cx="50%"
-                    cy="50%"
+                    cy="45%"
                     labelLine={true}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={130}
+                    outerRadius={90}
                     fill="#8884d8"
                     dataKey="value"
+                    startAngle={90}
+                    endAngle={-270}
                   >
                     {calculateViolationsRatio().map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -413,6 +475,113 @@ const Dashboard = () => {
                 </PieChart>
               </ResponsiveContainer>
             </Box>
+          </Box>
+        </Box>
+
+        {/* BAR CHART */}
+        <Box
+          gridColumn="span 5"
+          gridRow="span 3"
+          backgroundColor={colors.primary[400]}
+          p="20px"
+        >
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
+              Most Common Violations
+            </Typography>
+            <Select
+              value={barTimeframe}
+              onChange={(e) => setBarTimeframe(e.target.value)}
+              sx={{
+                backgroundColor: colors.primary[600],
+                color: colors.grey[100],
+                borderRadius: "5px",
+                ml: 2,
+                ".MuiOutlinedInput-notchedOutline": { border: 0 },
+              }}
+            >
+              <MenuItem value="week">Previous Week</MenuItem>
+              <MenuItem value="month">Previous Month</MenuItem>
+              <MenuItem value="year">This Year</MenuItem>
+            </Select>
+          </Box>
+          <Box height="260px" mt="25px">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={calculateViolationRanking()}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value) => [`${value} violations`, "Total"]} />
+                <Bar dataKey="value" fill={colors.blueAccent[500]}>
+                  {calculateViolationRanking().map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={index === 0 ? colors.redAccent[500] : 
+                            index === 1 ? colors.greenAccent[500] : 
+                            colors.blueAccent[500]} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </Box>
+
+        {/* UNIFORM DETECTIONS CHART */}
+        <Box
+          gridColumn="span 7"
+          gridRow="span 3"
+          backgroundColor={colors.primary[400]}
+          p="20px"
+        >
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
+              Uniform Type Distribution
+            </Typography>
+            <Select
+              value={uniformTimeframe}
+              onChange={(e) => setUniformTimeframe(e.target.value)}
+              sx={{
+                backgroundColor: colors.primary[600],
+                color: colors.grey[100],
+                borderRadius: "5px",
+                ml: 2,
+                ".MuiOutlinedInput-notchedOutline": { border: 0 },
+              }}
+            >
+              <MenuItem value="week">Previous Week</MenuItem>
+              <MenuItem value="month">Previous Month</MenuItem>
+              <MenuItem value="year">This Year</MenuItem>
+            </Select>
+          </Box>
+          <Box height="260px" mt="25px">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={calculateUniformDetections()}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value, name) => [`${value} detections`, name]} />
+                <Legend />
+                <Bar 
+                  dataKey="male" 
+                  name="Male" 
+                  fill={colors.blueAccent[500]} 
+                  stackId="a"
+                />
+                <Bar 
+                  dataKey="female" 
+                  name="Female" 
+                  fill={colors.greenAccent[500]} 
+                  stackId="a"
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </Box>
         </Box>
       </Box>
