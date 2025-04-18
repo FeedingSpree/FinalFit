@@ -21,11 +21,13 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
+import { getViolationLogs, addViolationLog } from "../../services/violationLogsService.ts";
 
-const MiniWebPlayer = ({ colors }) => {
+const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, onViolationDetected }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastDetectionTime, setLastDetectionTime] = useState(0);
   const playerRef = useRef(null);
 
   useEffect(() => {
@@ -47,6 +49,42 @@ const MiniWebPlayer = ({ colors }) => {
 
     checkBackendStatus();
   }, [retryCount]);
+
+  useEffect(() => {
+    const checkDetection = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/detection');
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check if it's a violation detection
+          if (data.type === "violation" && data.data) {
+            const now = new Date();
+            const violationLog = {
+              building_number: parseInt(buildingNumber) || 1,
+              camera_number: parseInt(cameraNumber) || 1,
+              date: now.toISOString().split('T')[0],
+              floor_number: parseInt(floorNumber) || 1,
+              time: now.toTimeString().split(' ')[0],
+              violation: data.data.violation,
+              violation_id: data.data.violation_id
+            };
+
+            // Add to violation logs
+            await addViolationLog(violationLog);
+            // Notify parent component
+            onViolationDetected(violationLog);
+            console.log('Violation logged:', violationLog);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking detection:', error);
+      }
+    };
+
+    const detectionInterval = setInterval(checkDetection, 1000);
+    return () => clearInterval(detectionInterval);
+  }, [buildingNumber, floorNumber, cameraNumber, onViolationDetected]);
 
   const handleRefresh = () => {
     setIsLoading(true);
@@ -148,8 +186,49 @@ const LiveFeed = () => {
   const [gridSize, setGridSize] = useState(1);
   const [selectedBuilding, setSelectedBuilding] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('');
-  const [timeFilter, setTimeFilter] = useState('1h');
   const [openDialog, setOpenDialog] = useState(false);
+  const [violations, setViolations] = useState([]);
+  const [filteredViolations, setFilteredViolations] = useState([]);
+  const [realtimeViolations, setRealtimeViolations] = useState([]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchAndFilterViolations, 60000); // Update every minute
+    fetchAndFilterViolations(); // Initial fetch
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAndFilterViolations = async () => {
+    try {
+      const logs = await getViolationLogs();
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000)); // 1 hour ago
+      
+      const filtered = logs.filter(violation => {
+        const violationDate = new Date(`${violation.date}T${violation.time}`);
+        return violationDate >= oneHourAgo && violationDate <= now;
+      });
+
+      setViolations(logs);
+      setFilteredViolations(filtered);
+    } catch (error) {
+      console.error("Error fetching violation logs:", error);
+    }
+  };
+
+  const handleViolationDetected = (violation) => {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+    
+    setRealtimeViolations(prev => {
+      // Add new violation and filter out old ones
+      const updated = [...prev, violation].filter(v => {
+        const violationDate = new Date(`${v.date}T${v.time}`);
+        return violationDate >= oneHourAgo;
+      });
+      return updated;
+    });
+  };
 
   const commonSelectStyles = {
     backgroundColor: colors.primary[400],
@@ -167,18 +246,6 @@ const LiveFeed = () => {
       border: "none"
     }
   };
-
-  const violations = [
-    { 
-      id: 1, 
-      type: "No ID", 
-      building: 1, 
-      floor: 2, 
-      camera: 3, 
-      time: "2024-04-12 10:30:00" 
-    },
-    // Add more mock violations here
-  ];
 
   const handleGridChange = (event) => {
     setGridSize(event.target.value);
@@ -214,7 +281,13 @@ const LiveFeed = () => {
                 overflow: 'hidden'
               }}
             >
-              <MiniWebPlayer colors={colors} />
+              <MiniWebPlayer 
+                colors={colors}
+                buildingNumber={selectedBuilding || "1"}
+                floorNumber={selectedFloor || "1"}
+                cameraNumber={i + 1}
+                onViolationDetected={handleViolationDetected}
+              />
             </Box>
 
             {/* Overlay Text */}
@@ -331,21 +404,8 @@ const LiveFeed = () => {
         >
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h5">
-              8 Dress Code Violations Detected
+              {realtimeViolations.length} Dress Code Violations Detected in the Past Hour
             </Typography>
-            <FormControl variant="filled" sx={{ minWidth: 120 }}>
-              <Select
-                value={timeFilter}
-                onChange={(e) => setTimeFilter(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                sx={commonSelectStyles}
-              >
-                <MenuItem value="30m">Last 30 mins</MenuItem>
-                <MenuItem value="1h">Last Hour</MenuItem>
-                <MenuItem value="4h">Last 4 Hours</MenuItem>
-                <MenuItem value="24h">Last 24 Hours</MenuItem>
-              </Select>
-            </FormControl>
           </Box>
         </Paper>
 
@@ -365,9 +425,9 @@ const LiveFeed = () => {
           </DialogTitle>
           <DialogContent sx={{ mt: 2 }}>
             <List>
-              {violations.map((violation) => (
+              {realtimeViolations.map((violation) => (
                 <ListItem
-                  key={violation.id}
+                  key={violation.violation_id}
                   sx={{
                     backgroundColor: colors.primary[300],
                     mb: 1,
@@ -375,18 +435,23 @@ const LiveFeed = () => {
                   }}
                 >
                   <ListItemText
-                    primary={`${violation.type} Violation`}
+                    primary={`${violation.violation} Violation`}
                     secondary={
                       <Typography color={colors.grey[100]}>
-                        Building {violation.building}, Floor {violation.floor}, Camera {violation.camera}
+                        Building {violation.building_number}, Floor {violation.floor_number}, Camera {violation.camera_number}
                         <br />
-                        {new Date(violation.time).toLocaleString()}
+                        {new Date(`${violation.date}T${violation.time}`).toLocaleString()}
                       </Typography>
                     }
                   />
                 </ListItem>
               ))}
             </List>
+            {realtimeViolations.length === 0 && (
+              <Typography color={colors.grey[100]} align="center" py={2}>
+                No violations found in the selected time period
+              </Typography>
+            )}
           </DialogContent>
         </Dialog>
       </Box>

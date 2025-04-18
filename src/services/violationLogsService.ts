@@ -13,11 +13,23 @@ import { db } from "../firebase.tsx";
 const collectionRef = collection(db, "violationlogs");
 
 export const addViolationLog = async (log: any) => {
-    const newLog = {
-        ...log,
-        timestamp: Timestamp.fromDate(new Date(log.timestamp)),
-    };
-    await addDoc(collectionRef, newLog);
+    try {
+        const violationLog = {
+            building_number: log.building_number,
+            camera_number: log.camera_number,
+            date: log.date,
+            floor_number: log.floor_number,
+            time: log.time,
+            violation: log.violation,
+            violation_id: log.violation_id
+        };
+        
+        await addDoc(collectionRef, violationLog);
+        return violationLog;
+    } catch (error) {
+        console.error("Error adding violation log:", error);
+        throw error;
+    }
 };
 
 export const getViolationLogs = async () => {
