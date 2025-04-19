@@ -21,75 +21,16 @@ import {
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
-import { getViolationLogs, addViolationLog } from "../../services/violationLogsService.ts";
+import { useDetection } from "../../context/DetectionContext";
 
-const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, onViolationDetected }) => {
+const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
-  const [lastDetectionTime, setLastDetectionTime] = useState(0);
   const playerRef = useRef(null);
-
-  useEffect(() => {
-    const checkBackendStatus = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/status');
-        if (!response.ok) throw new Error('Backend not ready');
-        const data = await response.json();
-        console.log('Backend status:', data);
-      } catch (err) {
-        console.error('Backend check failed:', err);
-        if (retryCount < 5) {
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-          }, 2000);
-        }
-      }
-    };
-
-    checkBackendStatus();
-  }, [retryCount]);
-
-  useEffect(() => {
-    const checkDetection = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/detection');
-        if (response.ok) {
-          const data = await response.json();
-          
-          // Check if it's a violation detection
-          if (data.type === "violation" && data.data) {
-            const now = new Date();
-            const violationLog = {
-              building_number: parseInt(buildingNumber) || 1,
-              camera_number: parseInt(cameraNumber) || 1,
-              date: now.toISOString().split('T')[0],
-              floor_number: parseInt(floorNumber) || 1,
-              time: now.toTimeString().split(' ')[0],
-              violation: data.data.violation,
-              violation_id: data.data.violation_id
-            };
-
-            // Add to violation logs
-            await addViolationLog(violationLog);
-            // Notify parent component
-            onViolationDetected(violationLog);
-            console.log('Violation logged:', violationLog);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking detection:', error);
-      }
-    };
-
-    const detectionInterval = setInterval(checkDetection, 1000);
-    return () => clearInterval(detectionInterval);
-  }, [buildingNumber, floorNumber, cameraNumber, onViolationDetected]);
 
   const handleRefresh = () => {
     setIsLoading(true);
     setError(null);
-    // Force reload the image by adding a timestamp to URL
     if (playerRef.current) {
       playerRef.current.src = `http://localhost:5000/api/stream?t=${Date.now()}`;
     }
@@ -107,7 +48,6 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, onVi
         position: 'relative'
       }}
     >
-      {/* Add refresh button */}
       <IconButton
         onClick={handleRefresh}
         sx={{
@@ -135,7 +75,7 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, onVi
             zIndex: 2
           }}
         >
-          {retryCount > 0 ? `Connecting... (Attempt ${retryCount}/5)` : 'Loading...'}
+          {'Loading...'}
         </Box>
       )}
       <Box
@@ -156,9 +96,6 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, onVi
           console.error("Error loading feed:", e);
           setError("Failed to load video feed. Retrying...");
           setIsLoading(false);
-          if (retryCount < 5) {
-            setTimeout(() => setRetryCount(prev => prev + 1), 2000);
-          }
         }}
       />
       {error && (
@@ -187,48 +124,7 @@ const LiveFeed = () => {
   const [selectedBuilding, setSelectedBuilding] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [violations, setViolations] = useState([]);
-  const [filteredViolations, setFilteredViolations] = useState([]);
-  const [realtimeViolations, setRealtimeViolations] = useState([]);
-
-  useEffect(() => {
-    const interval = setInterval(fetchAndFilterViolations, 60000); // Update every minute
-    fetchAndFilterViolations(); // Initial fetch
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchAndFilterViolations = async () => {
-    try {
-      const logs = await getViolationLogs();
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000)); // 1 hour ago
-      
-      const filtered = logs.filter(violation => {
-        const violationDate = new Date(`${violation.date}T${violation.time}`);
-        return violationDate >= oneHourAgo && violationDate <= now;
-      });
-
-      setViolations(logs);
-      setFilteredViolations(filtered);
-    } catch (error) {
-      console.error("Error fetching violation logs:", error);
-    }
-  };
-
-  const handleViolationDetected = (violation) => {
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
-    
-    setRealtimeViolations(prev => {
-      // Add new violation and filter out old ones
-      const updated = [...prev, violation].filter(v => {
-        const violationDate = new Date(`${v.date}T${v.time}`);
-        return violationDate >= oneHourAgo;
-      });
-      return updated;
-    });
-  };
+  const { violations } = useDetection();
 
   const commonSelectStyles = {
     backgroundColor: colors.primary[400],
@@ -286,11 +182,9 @@ const LiveFeed = () => {
                 buildingNumber={selectedBuilding || "1"}
                 floorNumber={selectedFloor || "1"}
                 cameraNumber={i + 1}
-                onViolationDetected={handleViolationDetected}
               />
             </Box>
 
-            {/* Overlay Text */}
             <Box
               sx={{
                 position: 'absolute',
@@ -323,70 +217,6 @@ const LiveFeed = () => {
   return (
     <Box m="20px">
       <Header title="Live Feed"/>
-      {/* Optional Filters - Uncomment if needed
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} md={4}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="subtitle1" color={colors.grey[100]} sx={{ minWidth: '120px' }}>
-              Camera Feeds:
-            </Typography>
-            <FormControl variant="filled" fullWidth>
-              <InputLabel>Number of Feeds</InputLabel>
-              <Select
-                value={gridSize}
-                onChange={handleGridChange}
-                sx={commonSelectStyles}
-              >
-                <MenuItem value={1}>1 Feed</MenuItem>
-                <MenuItem value={2}>2 Feeds</MenuItem>
-                <MenuItem value={4}>4 Feeds</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="subtitle1" color={colors.grey[100]} sx={{ minWidth: '120px' }}>
-              Building Number:
-            </Typography>
-            <FormControl variant="filled" fullWidth>
-              <InputLabel>Building Number</InputLabel>
-              <Select
-                value={selectedBuilding}
-                onChange={(e) => setSelectedBuilding(e.target.value)}
-                sx={commonSelectStyles}
-              >
-                {[1,2,3,4,5,6].map((num) => (
-                  <MenuItem key={num} value={num}>Building {num}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="subtitle1" color={colors.grey[100]} sx={{ minWidth: '120px' }}>
-              Floor Number:
-            </Typography>
-            <FormControl variant="filled" fullWidth>
-              <InputLabel>Floor Number</InputLabel>
-              <Select
-                value={selectedFloor}
-                onChange={(e) => setSelectedFloor(e.target.value)}
-                sx={commonSelectStyles}
-              >
-                {[1,2,3,4].map((num) => (
-                  <MenuItem key={num} value={num}>Floor {num}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </Grid>
-      </Grid>
-      */}
-
       <Grid container spacing={2}>
         {renderVideoFeeds()}
       </Grid>
@@ -404,7 +234,7 @@ const LiveFeed = () => {
         >
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h5">
-              {realtimeViolations.length} Dress Code Violations Detected in the Past Hour
+              {violations.length} Dress Code Violations Detected in the Past Hour
             </Typography>
           </Box>
         </Paper>
@@ -425,7 +255,7 @@ const LiveFeed = () => {
           </DialogTitle>
           <DialogContent sx={{ mt: 2 }}>
             <List>
-              {realtimeViolations.map((violation) => (
+              {violations.map((violation) => (
                 <ListItem
                   key={violation.violation_id}
                   sx={{
@@ -447,7 +277,7 @@ const LiveFeed = () => {
                 </ListItem>
               ))}
             </List>
-            {realtimeViolations.length === 0 && (
+            {violations.length === 0 && (
               <Typography color={colors.grey[100]} align="center" py={2}>
                 No violations found in the selected time period
               </Typography>

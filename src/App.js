@@ -23,58 +23,61 @@ import LiveFeed from "./scenes/Live Feed"; // Import the Live Feed page
 import SignInUpPage from "./scenes/sign-in-up-page/SignInUpPage"; // Import SignInUpPage component
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from "./theme";
+import { DetectionProvider } from "./context/DetectionContext";
 
 function App() { 
   const [theme, colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
 
   return (
-    <ColorModeContext.Provider value={colorMode}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <div className="app" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-          <Routes>
-            <Route path="/" element={<SignInUpPage />} />
-            <Route path="/dashboard" element={
-              <>
-                <Sidebar isSidebar={isSidebar} />
-                <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
-                  <Topbar setIsSidebar={setIsSidebar} />
-                  <Dashboard />
-                </main>
-              </>
-            } /> 
-            <Route path="/*" element={
-              <>
-                <Sidebar isSidebar={isSidebar} />
-                <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
-                  <Topbar setIsSidebar={setIsSidebar} />
-                  <Routes>
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/Utest" element={<UTest />} />
-                    <Route path="/Mtest" element={<MTest />} />
-                    <Route path="/Otest" element={<OTest />} />
-                    <Route path="/Stest" element={<STest />} />
-                    <Route path="/Vtest" element={<VTest />} />
-                    <Route path="/Ttest" element={<TTest />} />
-                    <Route path="/contacts" element={<Contacts />} />
-                    <Route path="/invoices" element={<Invoices />} />
-                    <Route path="/form" element={<Form />} />
-                    <Route path="/bar" element={<Bar />} />
-                    <Route path="/pie" element={<Pie />} />
-                    <Route path="/line" element={<Line />} />
-                    <Route path="/faq" element={<FAQ />} />
-                    <Route path="/calendar" element={<Calendar />} />
-                    <Route path="/geography" element={<Geography />} />
-                    <Route path="/live-feed" element={<LiveFeed />} /> {/* Add the Live Feed route */}
-                  </Routes>
-                </main>
-              </>
-            } />
-          </Routes>
-        </div>
-      </ThemeProvider>
-    </ColorModeContext.Provider>
+    <DetectionProvider>
+      <ColorModeContext.Provider value={colorMode}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <div className="app" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+            <Routes>
+              <Route path="/" element={<SignInUpPage />} />
+              <Route path="/dashboard" element={
+                <>
+                  <Sidebar isSidebar={isSidebar} />
+                  <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
+                    <Topbar setIsSidebar={setIsSidebar} />
+                    <Dashboard />
+                  </main>
+                </>
+              } /> 
+              <Route path="/*" element={
+                <>
+                  <Sidebar isSidebar={isSidebar} />
+                  <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
+                    <Topbar setIsSidebar={setIsSidebar} />
+                    <Routes>
+                      <Route path="/team" element={<Team />} />
+                      <Route path="/Utest" element={<UTest />} />
+                      <Route path="/Mtest" element={<MTest />} />
+                      <Route path="/Otest" element={<OTest />} />
+                      <Route path="/Stest" element={<STest />} />
+                      <Route path="/Vtest" element={<VTest />} />
+                      <Route path="/Ttest" element={<TTest />} />
+                      <Route path="/contacts" element={<Contacts />} />
+                      <Route path="/invoices" element={<Invoices />} />
+                      <Route path="/form" element={<Form />} />
+                      <Route path="/bar" element={<Bar />} />
+                      <Route path="/pie" element={<Pie />} />
+                      <Route path="/line" element={<Line />} />
+                      <Route path="/faq" element={<FAQ />} />
+                      <Route path="/calendar" element={<Calendar />} />
+                      <Route path="/geography" element={<Geography />} />
+                      <Route path="/live-feed" element={<LiveFeed />} /> {/* Add the Live Feed route */}
+                    </Routes>
+                  </main>
+                </>
+              } />
+            </Routes>
+          </div>
+        </ThemeProvider>
+      </ColorModeContext.Provider>
+    </DetectionProvider>
   );
 }
 
