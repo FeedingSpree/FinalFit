@@ -21,6 +21,43 @@ import {
   Bar,
 } from "recharts";
 
+// Add this after the imports
+const VIOLATION_DISPLAY_NAMES = {
+  no_sleeves: "Sleeveless",
+  cap: "Cap",
+  shorts: "Shorts"
+};
+
+// Add these helper functions after your existing imports
+const getDateRangeText = (timeframe) => {
+  const today = new Date();
+  const formatDate = (date) => {
+    return date.toLocaleDateString(undefined, { 
+      weekday: "short",
+      month: "short",
+      day: "numeric"
+    });
+  };
+
+  switch (timeframe) {
+    case "week": {
+      const startDate = new Date();
+      startDate.setDate(today.getDate() - 6);
+      return `${formatDate(startDate)} - ${formatDate(today)}`;
+    }
+    case "month": {
+      const monthAgo = new Date();
+      monthAgo.setMonth(today.getMonth() - 1);
+      return `${formatDate(monthAgo)} - ${formatDate(today)}`;
+    }
+    case "year": {
+      return `Year ${today.getFullYear()}`;
+    }
+    default:
+      return "";
+  }
+};
+
 const Dashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
@@ -52,66 +89,76 @@ const Dashboard = () => {
     const today = new Date();
 
     if (timeframe === "month") {
-      // Calculate week ranges
-      const endOfWeek4 = new Date();
-      const startOfWeek4 = new Date(endOfWeek4);
-      startOfWeek4.setDate(endOfWeek4.getDate() - 6);
+      const grouped = {};
+      const today = new Date();
+      const monthAgo = new Date();
+      monthAgo.setMonth(today.getMonth() - 1);
 
-      const endOfWeek3 = new Date(startOfWeek4);
-      endOfWeek3.setDate(startOfWeek4.getDate() - 1);
-      const startOfWeek3 = new Date(endOfWeek3);
-      startOfWeek3.setDate(endOfWeek3.getDate() - 6);
+      // Get dates for the past month divided into weeks
+      const weeks = [];
+      let currentDate = new Date(monthAgo);
+      
+      while (currentDate <= today) {
+        const weekStart = new Date(currentDate);
+        const weekEnd = new Date(currentDate);
+        weekEnd.setDate(weekEnd.getDate() + 6);
 
-      const endOfWeek2 = new Date(startOfWeek3);
-      endOfWeek2.setDate(startOfWeek3.getDate() - 1);
-      const startOfWeek2 = new Date(endOfWeek2);
-      startOfWeek2.setDate(endOfWeek2.getDate() - 6);
+        if (weekEnd > today) {
+          weeks.push({
+            start: weekStart,
+            end: today,
+            label: `${weekStart.toLocaleDateString(undefined, { 
+              month: 'short',
+              day: 'numeric'
+            })} - ${today.toLocaleDateString(undefined, { 
+              month: 'short',
+              day: 'numeric'
+            })}`
+          });
+        } else {
+          weeks.push({
+            start: weekStart,
+            end: weekEnd,
+            label: `${weekStart.toLocaleDateString(undefined, { 
+              month: 'short',
+              day: 'numeric'
+            })} - ${weekEnd.toLocaleDateString(undefined, { 
+              month: 'short',
+              day: 'numeric'
+            })}`
+          });
+        }
 
-      const endOfWeek1 = new Date(startOfWeek2);
-      endOfWeek1.setDate(startOfWeek2.getDate() - 1);
-      const startOfWeek1 = new Date(endOfWeek1);
-      startOfWeek1.setDate(endOfWeek1.getDate() - 6);
+        currentDate.setDate(currentDate.getDate() + 7);
+      }
 
-      // Format date ranges
-      const formatDateRange = (start, end) => {
-        const formatDate = (date) => {
-          const month = date.toLocaleString('default', { month: 'short' });
-          const day = date.getDate();
-          return `${month} ${day}`;
+      // Initialize grouped data
+      weeks.forEach(week => {
+        grouped[week.label] = { 
+          name: week.label, 
+          cap: 0, 
+          shorts: 0, 
+          no_sleeves: 0 
         };
-        return `${formatDate(start)}-${formatDate(end)}`;
-      };
-
-      const weekRanges = [
-        { key: `Week 1 (${formatDateRange(startOfWeek1, endOfWeek1)})`, start: startOfWeek1, end: endOfWeek1 },
-        { key: `Week 2 (${formatDateRange(startOfWeek2, endOfWeek2)})`, start: startOfWeek2, end: endOfWeek2 },
-        { key: `Week 3 (${formatDateRange(startOfWeek3, endOfWeek3)})`, start: startOfWeek3, end: endOfWeek3 },
-        { key: `Week 4 (${formatDateRange(startOfWeek4, endOfWeek4)})`, start: startOfWeek4, end: endOfWeek4 }
-      ];
-
-      // Initialize grouped data with formatted keys
-      weekRanges.forEach(({ key }) => {
-        grouped[key] = { name: key, cap: 0, shorts: 0, sleeveless: 0 };
       });
 
+      // Count violations for each week
       violations.forEach((v) => {
         const violationDate = new Date(`${v.date}T${v.time}`);
         
-        // Find matching week range
-        const matchingWeek = weekRanges.find(
+        const matchingWeek = weeks.find(
           week => violationDate >= week.start && violationDate <= week.end
         );
 
         if (matchingWeek) {
-          const key = matchingWeek.key;
+          const key = matchingWeek.label;
           if (v.violation === "cap") grouped[key].cap += 1;
           if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "sleeveless") grouped[key].sleeveless += 1;
+          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
         }
       });
 
-      // Return data in chronological order
-      return weekRanges.map(({ key }) => grouped[key]);
+      return weeks.map(week => grouped[week.label]);
     }
 
     if (timeframe === "week") {
@@ -149,17 +196,17 @@ const Dashboard = () => {
     
         if (key) {
           if (!grouped[key]) {
-            grouped[key] = { name: key, cap: 0, shorts: 0, sleeveless: 0 };
+            grouped[key] = { name: key, cap: 0, shorts: 0, no_sleeves: 0 };
           }
     
           if (v.violation === "cap") grouped[key].cap += 1;
           if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "sleeveless") grouped[key].sleeveless += 1;
+          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
         }
       });
     
       return last7Days.map((day) =>
-        grouped[day.weekday] || { name: day.weekday, cap: 0, shorts: 0, sleeveless: 0 }
+        grouped[day.weekday] || { name: day.weekday, cap: 0, shorts: 0, no_sleeves: 0 }
       );
     }
   
@@ -173,11 +220,11 @@ const Dashboard = () => {
         if (violationDate.getFullYear() === year) {
           const key = violationDate.toLocaleString("default", { month: "short" });
           if (!grouped[key]) {
-            grouped[key] = { name: key, cap: 0, shorts: 0, sleeveless: 0 };
+            grouped[key] = { name: key, cap: 0, shorts: 0, no_sleeves: 0 };
           }
           if (v.violation === "cap") grouped[key].cap += 1;
           if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "sleeveless") grouped[key].sleeveless += 1;
+          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
         }
       });
     
@@ -185,20 +232,29 @@ const Dashboard = () => {
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"
       ];
-      return months.map((month) => grouped[month] || { name: month, cap: 0, shorts: 0, sleeveless: 0 });
+      return months.map((month) => grouped[month] || { name: month, cap: 0, shorts: 0, no_sleeves: 0 });
     }
     return Object.values(grouped);
   };
   // PIE CHART
   const calculateViolationsRatio = () => {
+    const today = new Date();
+    
     const filteredViolations = violations.filter(v => {
       const violationDate = new Date(`${v.date}T${v.time}`);
-      const today = new Date();
-
+      
       if (pieTimeframe === "week") {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        return violationDate >= weekAgo && violationDate <= today;
+        // Create array of last 7 days including today
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(today.getDate() - (6 - i));
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        });
+        
+        return last7Days.includes(v.date);
       }
       
       if (pieTimeframe === "month") {
@@ -223,21 +279,30 @@ const Dashboard = () => {
     const COLORS = ['#8884d8', '#82ca9d', '#ff6b6b'];
     
     return Object.entries(totals).map(([name, value], index) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
+      name: VIOLATION_DISPLAY_NAMES[name] || name.charAt(0).toUpperCase() + name.slice(1),
       value,
       color: COLORS[index]
     }));
   };
   // BAR CHART
   const calculateViolationRanking = () => {
+    const today = new Date();
+    
     const filteredViolations = violations.filter(v => {
       const violationDate = new Date(`${v.date}T${v.time}`);
-      const today = new Date();
-
+      
       if (barTimeframe === "week") {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        return violationDate >= weekAgo && violationDate <= today;
+        // Create array of last 7 days including today
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(today.getDate() - (6 - i));
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        });
+        
+        return last7Days.includes(v.date);
       }
       
       if (barTimeframe === "month") {
@@ -261,24 +326,29 @@ const Dashboard = () => {
 
     return Object.entries(totals)
       .map(([name, value]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
+        name: VIOLATION_DISPLAY_NAMES[name] || name.charAt(0).toUpperCase() + name.slice(1),
         value
       }))
       .sort((a, b) => b.value - a.value); // Sort by value in descending order
   };
 
   const calculateUniformDetections = () => {
+    const today = new Date();
+    
     const filteredDetections = detections.filter(d => {
       const detectionDate = new Date(`${d.date}T${d.time}`);
-      const today = new Date();
-
-      if (uniformTimeframe === "year") {
-        return detectionDate.getFullYear() === today.getFullYear();
-      }
+      
       if (uniformTimeframe === "week") {
-        const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 7);
-        return detectionDate >= weekAgo && detectionDate <= today;
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(today.getDate() - (6 - i));
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        });
+        
+        return last7Days.includes(d.date);
       }
       
       if (uniformTimeframe === "month") {
@@ -286,47 +356,38 @@ const Dashboard = () => {
         monthAgo.setMonth(today.getMonth() - 1);
         return detectionDate >= monthAgo && detectionDate <= today;
       }
+      
+      if (uniformTimeframe === "year") {
+        return detectionDate.getFullYear() === today.getFullYear();
+      }
     });
 
-    // For year view, group by months
+    // For year view, combine all detections into two categories
     if (uniformTimeframe === "year") {
-      const grouped = {};
-      const today = new Date();
-
-      filteredDetections.forEach((detection) => {
-        const detectionDate = new Date(`${detection.date}T${detection.time}`);
-        const year = today.getFullYear();
+      const yearTotals = {
+        "PE": { name: "PE Uniform", male: 0, female: 0 },
+        "Regular": { name: "Regular Uniform", male: 0, female: 0 },
         
-        if (detectionDate.getFullYear() === year) {
-          const key = detectionDate.toLocaleString("default", { month: "short" });
-          
-          if (!grouped[key]) {
-            grouped[key] = { 
-              name: key, 
-              male: 0, 
-              female: 0 
-            };
-          }
+      };
 
-          if (detection.detection.includes("Male")) {
-            grouped[key].male++;
-          } else if (detection.detection.includes("Female")) {
-            grouped[key].female++;
+      filteredDetections.forEach(detection => {
+        if (detection && detection.detection) {
+          if (detection.detection.includes("Male PE")) {
+            yearTotals["PE"].male++;
+          } else if (detection.detection.includes("Female PE")) {
+            yearTotals["PE"].female++;
+          } else if (detection.detection.includes("Male Regular")) {
+            yearTotals["Regular"].male++;
+          } else if (detection.detection.includes("Female Regular")) {
+            yearTotals["Regular"].female++;
           }
         }
       });
 
-      const months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"
-      ];
-
-      return months.map((month) => 
-        grouped[month] || { name: month, male: 0, female: 0 }
-      );
+      return Object.values(yearTotals);
     }
 
-    // For week and month views
+    // For week and month views, keep existing logic
     const totals = {
       "PE Uniform": { name: "PE Uniform", male: 0, female: 0 },
       "Regular Uniform": { name: "Regular Uniform", male: 0, female: 0 }
@@ -350,14 +411,14 @@ const Dashboard = () => {
   };
 
   return (
-    <Box m="20px">
+    <Box m="30px">
       {/* HEADER */}
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Header title="Dashboard"/>
         <Box>
           <Button
             sx={{
-              backgroundColor: colors.blueAccent[700],
+              backgroundColor: '#ffd700',
               color: colors.grey[100],
               fontSize: "14px",
               fontWeight: "bold",
@@ -375,7 +436,7 @@ const Dashboard = () => {
         display="grid"
         gridTemplateColumns="repeat(12, 1fr)"
         gridAutoRows="110px"
-        gap="20px"
+        gap="30px"
       >
         {/* VIOLATIONS CHART & RIGHT PANEL */}
         <Box
@@ -383,22 +444,25 @@ const Dashboard = () => {
           gridRow="span 3"
           display="grid"
           gridTemplateColumns="2fr 1fr"
-          gap="20px"
+          gap="25px"
         >
           {/* VIOLATIONS CHART */}
           <Box
-            backgroundColor={colors.primary[400]}
+            backgroundColor={colors.grey[900]}
             p="20px"
+            sx={{
+              borderRadius: "16px", // Rounded corners
+            }}
           >
             <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
+              <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
                 Dress Code Violations
               </Typography>
               <Select
                 value={timeframe}
                 onChange={(e) => setTimeframe(e.target.value)}
                 sx={{
-                  backgroundColor: colors.primary[600],
+                  backgroundColor: colors.primary[900],
                   color: colors.grey[100],
                   borderRadius: "5px",
                   ml: 2,
@@ -413,14 +477,19 @@ const Dashboard = () => {
             <Box height="260px" mt="25px">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={formatData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+                  <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.8} />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      value, 
+                      VIOLATION_DISPLAY_NAMES[name] || name
+                    ]} 
+                  />
                   <Legend />
-                  <Line type="monotone" dataKey="cap" stroke="#8884d8" />
-                  <Line type="monotone" dataKey="shorts" stroke="#82ca9d" />
-                  <Line type="monotone" dataKey="sleeveless" stroke="#ff6b6b" />
+                  <Line type="monotone" dataKey="cap" name="Cap" stroke="#82ca9d" />
+                  <Line type="monotone" dataKey="shorts" name="Shorts" stroke="#8884d8" />
+                  <Line type="monotone" dataKey="no_sleeves" name="Sleeveless" stroke="#ff6b6b" />
                 </LineChart>
               </ResponsiveContainer>
             </Box>
@@ -428,28 +497,36 @@ const Dashboard = () => {
 
           {/* RIGHT PANEL */}
           <Box
-            backgroundColor={colors.primary[400]}
+            backgroundColor={colors.grey[900]}
             p="20px"
+            sx={{
+              borderRadius: "16px", // Rounded corners
+            }}
           >
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
-                Violations Ratio
+            <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
+              <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
+                <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
+                  Violations Ratio
+                </Typography>
+                <Select
+                  value={pieTimeframe}
+                  onChange={(e) => setPieTimeframe(e.target.value)}
+                  sx={{
+                    backgroundColor: colors.primary[900],
+                    color: colors.grey[100],
+                    borderRadius: "5px",
+                    ml: 2,
+                    ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                  }}
+                >
+                  <MenuItem value="week">Previous Week</MenuItem>
+                  <MenuItem value="month">Previous Month</MenuItem>
+                  <MenuItem value="year">This Year</MenuItem>
+                </Select>
+              </Box>
+              <Typography variant="subtitle2" color={colors.grey[300]}>
+                {getDateRangeText(pieTimeframe)}
               </Typography>
-              <Select
-                value={pieTimeframe}
-                onChange={(e) => setPieTimeframe(e.target.value)}
-                sx={{
-                  backgroundColor: colors.primary[600],
-                  color: colors.grey[100],
-                  borderRadius: "5px",
-                  ml: 2,
-                  ".MuiOutlinedInput-notchedOutline": { border: 0 },
-                }}
-              >
-                <MenuItem value="week">Previous Week</MenuItem>
-                <MenuItem value="month">Previous Month</MenuItem>
-                <MenuItem value="year">This Year</MenuItem>
-              </Select>
             </Box>
             <Box height="260px" mt="25px" display="flex" flexDirection="column" alignItems="center" justifyContent="center">
               <ResponsiveContainer width="100%" height="100%">
@@ -457,7 +534,7 @@ const Dashboard = () => {
                   <Pie
                     data={calculateViolationsRatio()}
                     cx="50%"
-                    cy="45%"
+                    cy="55%"
                     labelLine={true}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={90}
@@ -470,7 +547,12 @@ const Dashboard = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value, name) => [`${value} violations`, name]} />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      `${value} violations`, 
+                      name
+                    ]} 
+                  />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -482,28 +564,36 @@ const Dashboard = () => {
         <Box
           gridColumn="span 5"
           gridRow="span 3"
-          backgroundColor={colors.primary[400]}
+          backgroundColor={colors.grey[900]}
           p="20px"
+          sx={{
+            borderRadius: "16px", // Rounded corners
+          }}
         >
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
-              Most Common Violations
+          <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
+            <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
+              <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
+                Most Common Violations
+              </Typography>
+              <Select
+                value={barTimeframe}
+                onChange={(e) => setBarTimeframe(e.target.value)}
+                sx={{
+                  backgroundColor: colors.primary[900],
+                  color: colors.grey[100],
+                  borderRadius: "5px",
+                  ml: 2,
+                  ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                }}
+              >
+                <MenuItem value="week">Previous Week</MenuItem>
+                <MenuItem value="month">Previous Month</MenuItem>
+                <MenuItem value="year">This Year</MenuItem>
+              </Select>
+            </Box>
+            <Typography variant="subtitle2" color={colors.grey[300]}>
+              {getDateRangeText(barTimeframe)}
             </Typography>
-            <Select
-              value={barTimeframe}
-              onChange={(e) => setBarTimeframe(e.target.value)}
-              sx={{
-                backgroundColor: colors.primary[600],
-                color: colors.grey[100],
-                borderRadius: "5px",
-                ml: 2,
-                ".MuiOutlinedInput-notchedOutline": { border: 0 },
-              }}
-            >
-              <MenuItem value="week">Previous Week</MenuItem>
-              <MenuItem value="month">Previous Month</MenuItem>
-              <MenuItem value="year">This Year</MenuItem>
-            </Select>
           </Box>
           <Box height="260px" mt="25px">
             <ResponsiveContainer width="100%" height="100%">
@@ -511,17 +601,22 @@ const Dashboard = () => {
                 data={calculateViolationRanking()}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.8} />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`${value} violations`, "Total"]} />
+                <Tooltip 
+                  formatter={(value) => [
+                    `${value} violations`, 
+                    "Total"
+                  ]} 
+                />
                 <Bar dataKey="value" fill={colors.blueAccent[500]}>
                   {calculateViolationRanking().map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={index === 0 ? colors.redAccent[500] : 
-                            index === 1 ? colors.greenAccent[500] : 
-                            colors.blueAccent[500]} 
+                      fill={index === 0 ? '#ff0000' : 
+                            index === 1 ? '#ffa500' : 
+                            '#ffff00'} 
                     />
                   ))}
                 </Bar>
@@ -534,28 +629,36 @@ const Dashboard = () => {
         <Box
           gridColumn="span 7"
           gridRow="span 3"
-          backgroundColor={colors.primary[400]}
+          backgroundColor={colors.grey[900]}
           p="20px"
+          sx={{
+            borderRadius: "16px", // Rounded corners
+          }}
         >
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
-              Uniform Type Distribution
+          <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
+            <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
+              <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
+                Uniform Type Distribution
+              </Typography>
+              <Select
+                value={uniformTimeframe}
+                onChange={(e) => setUniformTimeframe(e.target.value)}
+                sx={{
+                  backgroundColor: colors.primary[900],
+                  color: colors.grey[100],
+                  borderRadius: "5px",
+                  ml: 2,
+                  ".MuiOutlinedInput-notchedOutline": { border: 0 },
+                }}
+              >
+                <MenuItem value="week">Previous Week</MenuItem>
+                <MenuItem value="month">Previous Month</MenuItem>
+                <MenuItem value="year">This Year</MenuItem>
+              </Select>
+            </Box>
+            <Typography variant="subtitle2" color={colors.grey[300]}>
+              {getDateRangeText(uniformTimeframe)}
             </Typography>
-            <Select
-              value={uniformTimeframe}
-              onChange={(e) => setUniformTimeframe(e.target.value)}
-              sx={{
-                backgroundColor: colors.primary[600],
-                color: colors.grey[100],
-                borderRadius: "5px",
-                ml: 2,
-                ".MuiOutlinedInput-notchedOutline": { border: 0 },
-              }}
-            >
-              <MenuItem value="week">Previous Week</MenuItem>
-              <MenuItem value="month">Previous Month</MenuItem>
-              <MenuItem value="year">This Year</MenuItem>
-            </Select>
           </Box>
           <Box height="260px" mt="25px">
             <ResponsiveContainer width="100%" height="100%">
@@ -563,7 +666,7 @@ const Dashboard = () => {
                 data={calculateUniformDetections()}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.5} />
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.8} />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip formatter={(value, name) => [`${value} detections`, name]} />
@@ -577,7 +680,7 @@ const Dashboard = () => {
                 <Bar 
                   dataKey="female" 
                   name="Female" 
-                  fill={colors.greenAccent[500]} 
+                  fill={colors.redAccent[600]} 
                   stackId="a"
                 />
               </BarChart>

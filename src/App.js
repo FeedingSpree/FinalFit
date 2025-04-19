@@ -41,7 +41,6 @@ function App() {
                 <>
                   <Sidebar isSidebar={isSidebar} />
                   <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
-                    <Topbar setIsSidebar={setIsSidebar} />
                     <Dashboard />
                   </main>
                 </>
@@ -50,7 +49,6 @@ function App() {
                 <>
                   <Sidebar isSidebar={isSidebar} />
                   <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
-                    <Topbar setIsSidebar={setIsSidebar} />
                     <Routes>
                       <Route path="/team" element={<Team />} />
                       <Route path="/Utest" element={<UTest />} />
@@ -68,7 +66,7 @@ function App() {
                       <Route path="/faq" element={<FAQ />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/geography" element={<Geography />} />
-                      <Route path="/live-feed" element={<LiveFeed />} /> {/* Add the Live Feed route */}
+                      <Route path="/live-feed" element={<LiveFeed />} />
                     </Routes>
                   </main>
                 </>
