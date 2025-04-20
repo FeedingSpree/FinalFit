@@ -7,17 +7,20 @@ const usersCollectionRef = collection(db, "users");
 
 // Create a new user
 export const addUser = async (user: {
+  user_id: string;  // Add this line
   first_name: string;
   last_name: string;
   username: string;
   password: string;
   loa: string;
-}) => { 
+}) => {
   try {
-    await addDoc(usersCollectionRef, user);
-    console.log("User added!");
+    const docRef = await addDoc(usersCollectionRef, user);
+    console.log("Document written with ID: ", docRef.id);
+    return docRef;
   } catch (e) {
-    console.error("Error adding user: ", e);
+    console.error("Error adding document: ", e);
+    throw e;
   }
 };
 

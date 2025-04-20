@@ -4,14 +4,22 @@ import {
   Typography,
   useTheme,
   Button,
-  Modal,
-  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  OutlinedInput,
   Snackbar,
   Alert,
   IconButton,
+  Radio,
+  FormControlLabel,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
 import {
@@ -20,6 +28,18 @@ import {
   updateManagement,
   deleteManagement,
 } from "../../services/managementService.ts";
+
+const validateDate = (dateStr) => {
+  const regex = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])-([12]\d{3})$/;
+  if (!regex.test(dateStr)) return false;
+  
+  const [month, day, year] = dateStr.split('-').map(num => parseInt(num, 10));
+  const date = new Date(year, month - 1, day);
+  
+  return date.getMonth() === month - 1 && 
+         date.getDate() === day && 
+         date.getFullYear() === year;
+};
 
 const AuditLogs = () => {
   const theme = useTheme();
@@ -30,6 +50,10 @@ const AuditLogs = () => {
   const [selectedRows, setSelectedRows] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [formErrors, setFormErrors] = useState({
+    start_date: '',
+    end_date: ''
+  });
 
   useEffect(() => {
     fetchManagements();
@@ -52,10 +76,48 @@ const AuditLogs = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCurrentManagement({ ...currentManagement, [name]: value });
+    
+    if (name === 'status') {
+      setCurrentManagement(prev => ({
+        ...prev,
+        [name]: value,
+        start_date: value === 'Not Allowed' ? '' : prev?.start_date || '',
+        end_date: value === 'Not Allowed' ? '' : prev?.end_date || ''
+      }));
+      return;
+    }
+
+    if (name === 'start_date' || name === 'end_date') {
+      if (value && !validateDate(value)) {
+        setFormErrors(prev => ({
+          ...prev,
+          [name]: 'Please enter date in MM-DD-YYYY format'
+        }));
+      } else {
+        setFormErrors(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+      }
+    }
+
+    setCurrentManagement(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleSave = async () => {
+    // Add validation for required dates when status is Allowed
+    if (currentManagement?.status === 'Allowed' && 
+        (!currentManagement.start_date || !currentManagement.end_date)) {
+      setFormErrors({
+        start_date: !currentManagement.start_date ? 'Start date is required' : '',
+        end_date: !currentManagement.end_date ? 'End date is required' : ''
+      });
+      return;
+    }
+
     try {
       if (currentManagement?.id) {
         await updateManagement(currentManagement.id, currentManagement);
@@ -69,69 +131,66 @@ const AuditLogs = () => {
     }
   };
 
-  const handleDeleteSelectedRows = async () => {
-    try {
-      for (let id of selectedRows) {
-        await deleteManagement(id);
-      }
-      fetchManagements();
-      setSnackbarOpen(true);
-    } catch (err) {
-      console.error("Delete failed:", err);
-    }
-  };
-
   const handleCloseSnackbar = (_, reason) => {
     if (reason === "clickaway") return;
     setSnackbarOpen(false);
   };
 
   const managementColumns = [
-    { field: "id", headerName: "ID", width: 90 },
-    { field: "dress_code", headerName: "Dress Code", flex: 1 },
-    { field: "status", headerName: "Status", flex: 1 },
-    { field: "start_date", headerName: "Start Date", flex: 1 },
-    { field: "end_date", headerName: "End Date", flex: 1 },
+    { 
+      field: "dress_code_id", 
+      headerName: "Dress Code ID", 
+      flex: 0.7,
+      sortable: true,
+    },
+    {
+      field: "dress_code",
+      headerName: "Dress Code",
+      flex: 1,
+      sortable: true,
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      sortable: true,
+    },
+    {
+      field: "start_date",
+      headerName: "Start Date",
+      flex: 1,
+      sortable: true,
+    },
+    {
+      field: "end_date",
+      headerName: "End Date",
+      flex: 1,
+      sortable: true,
+    },
     {
       field: "actions",
       headerName: "Actions",
-      flex: 1,
+      flex: 0.8,
+      sortable: false,
+      filterable: false,
       renderCell: (params) => (
-        <Button onClick={() => handleOpenModal(params.row)} color="secondary">
-          Edit
-        </Button>
+        <Box display="flex" gap="5px">
+          <IconButton 
+            onClick={() => handleOpenModal(params.row)}
+            color="primary"
+            size="small"
+          >
+            <EditIcon />
+          </IconButton>
+        </Box>
       ),
     },
   ];
 
   return (
     <Box m="20px">
-      <Header title="Audit Logs" subtitle="Dress Code Management" />
-
-      <Typography variant="h5" color={colors.grey[100]} mt={3}>
-        Dress Code Managements
-      </Typography>
-
-      <Button
-        onClick={() => handleOpenModal()}
-        sx={{ mt: 2, mb: 2 }}
-        variant="contained"
-        color="success"
-      >
-        Add Management
-      </Button>
-
-      <Button
-        onClick={handleDeleteSelectedRows}
-        disabled={selectedRows.length === 0}
-        sx={{ ml: 2 }}
-        variant="contained"
-        color="error"
-      >
-        Delete Selected
-      </Button>
-
-      <Box height="70vh">
+      <Header title="Policies" subtitle="Dress Code Policy Management" />
+      <Box height="85vh">
         <DataGrid
           checkboxSelection
           rows={managements}
@@ -141,137 +200,321 @@ const AuditLogs = () => {
         />
       </Box>
 
-      {/* Modal */}
-      <Modal open={isModalOpen} onClose={handleCloseModal}>
-        <Box sx={{ ...modalStyle, backgroundColor: colors.primary[500], color: colors.grey[500] }}>
-        <Typography variant="h6" mb={2}>
-  {currentManagement?.id ? "Edit Management" : "Add Management"}
-</Typography>
+      {/* Dialog */}
+      <Dialog 
+        open={isModalOpen} 
+        onClose={handleCloseModal}
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.grey[900],
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: colors.grey[100] }}>
+          Edit Policy
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            component="form"
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              padding: '10px',
+              '& .form-row': {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              },
+              '& .form-label': {
+                minWidth: '100px',
+                textAlign: 'left',
+              },
+              '& .form-input': {
+                flex: 1,
+              },
+            }}
+            noValidate
+            autoComplete="off"
+          >
+            <div className="form-row">
+              <Typography
+                className="form-label"
+                sx={{ 
+                  color: colors.grey[100],
+                  fontWeight: 'bold'
+                }}
+              >
+                Status
+              </Typography>
+              <Box 
+                sx={{ 
+                  display: 'flex',
+                  gap: 4,
+                  alignItems: 'center'
+                }}
+              >
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  <Radio
+                    checked={currentManagement?.status === 'Allowed'}
+                    onChange={(e) => handleChange({
+                      target: {
+                        name: 'status',
+                        value: 'Allowed'
+                      }
+                    })}
+                    sx={{ 
+                      color: colors.grey[100],
+                      '&.Mui-checked': {
+                        color: colors.greenAccent[500]
+                      }
+                    }}
+                  />
+                  <Typography sx={{ color: colors.grey[100] }}>
+                    Allowed
+                  </Typography>
+                </Box>
 
-<TextField
-  name="dress_code"
-  placeholder="Dress Code"
-  label="Dress Code"
-  variant="outlined"
-  value={currentManagement?.dress_code || ""}
-  fullWidth
-  onChange={handleChange}
-  margin="normal"
-  InputLabelProps={{ style: { color: colors.grey[100] } }}
-  InputProps={{
-    style: {
-      color: colors.grey[100],
-    },
-  }}
-/>
+                <Box 
+                  sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  <Radio
+                    checked={currentManagement?.status === 'Not Allowed'}
+                    onChange={(e) => handleChange({
+                      target: {
+                        name: 'status',
+                        value: 'Not Allowed'
+                      }
+                    })}
+                    sx={{ 
+                      color: colors.grey[100],
+                      '&.Mui-checked': {
+                        color: colors.redAccent[500]
+                      }
+                    }}
+                  />
+                  <Typography sx={{ color: colors.grey[100] }}>
+                    Not Allowed
+                  </Typography>
+                </Box>
+              </Box>
+            </div>
 
-<TextField
-  name="status"
-  placeholder="Status"
-  label="Status"
-  variant="outlined"
-  value={currentManagement?.status || ""}
-  fullWidth
-  onChange={handleChange}
-  margin="normal"
-  InputLabelProps={{ style: { color: colors.grey[100] } }}
-  InputProps={{
-    style: {
-      color: colors.grey[100],
-    },
-  }}
-/>
+            <div className="form-row">
+              <Typography
+                className="form-label"
+                sx={{ 
+                  color: colors.grey[100],
+                  fontWeight: 'bold'
+                }}
+              >
+                Start Date
+              </Typography>
+              <OutlinedInput
+                className="form-input"
+                name="start_date"
+                placeholder="MM-DD-YYYY"
+                value={currentManagement?.start_date || ''}
+                onChange={handleChange}
+                disabled={currentManagement?.status === 'Not Allowed'}
+                error={!!formErrors.start_date}
+                sx={{
+                  color: colors.grey[100],
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: formErrors.start_date ? '#f44336' : colors.grey[400],
+                    borderWidth: 1,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: formErrors.start_date ? '#f44336' : colors.grey[100],
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: formErrors.start_date ? '#f44336' : colors.grey[100],
+                  },
+                  '&::placeholder': {
+                    color: colors.grey[500],
+                    opacity: 1,
+                  },
+                }}
+              />
+              {formErrors.start_date && (
+                <Typography color="error" variant="caption">
+                  {formErrors.start_date}
+                </Typography>
+              )}
+            </div>
 
-<TextField
-  name="start_date"
-  placeholder="Start Date (YYYY-MM-DD)"
-  label="Start Date (YYYY-MM-DD)"
-  variant="outlined"
-  value={currentManagement?.start_date || ""}
-  fullWidth
-  onChange={handleChange}
-  margin="normal"
-  InputLabelProps={{ style: { color: colors.grey[100] } }}
-  InputProps={{
-    style: {
-      color: colors.grey[100],
-    },
-  }}
-/>
-
-<TextField
-  name="end_date"
-  placeholder="End Date (YYYY-MM-DD)"
-  label="End Date (YYYY-MM-DD)"
-  variant="outlined"
-  value={currentManagement?.end_date || ""}
-  fullWidth
-  onChange={handleChange}
-  margin="normal"
-  InputLabelProps={{ style: { color: 'white' } }}
-  InputProps={{
-    style: {
-      color: colors.grey[100],
-    },
-  }}
-/>
-          <Box mt={2}>
-            <Button onClick={handleSave} variant="contained" color="primary" sx={{ mr: 2 }}>
-              Save
-            </Button>
-            <Button onClick={handleCloseModal} variant="outlined" color="secondary">
-              Cancel
-            </Button>
+            <div className="form-row">
+              <Typography
+                className="form-label"
+                sx={{ 
+                  color: colors.grey[100],
+                  fontWeight: 'bold'
+                }}
+              >
+                End Date
+              </Typography>
+              <OutlinedInput
+                className="form-input"
+                name="end_date"
+                placeholder="MM-DD-YYYY"
+                value={currentManagement?.end_date || ''}
+                onChange={handleChange}
+                disabled={currentManagement?.status === 'Not Allowed'}
+                error={!!formErrors.end_date}
+                sx={{
+                  color: colors.grey[100],
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: formErrors.end_date ? '#f44336' : colors.grey[400],
+                    borderWidth: 1,
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: formErrors.end_date ? '#f44336' : colors.grey[100],
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: formErrors.end_date ? '#f44336' : colors.grey[100],
+                  },
+                  '&::placeholder': {
+                    color: colors.grey[500],
+                    opacity: 1,
+                  },
+                }}
+              />
+              {formErrors.end_date && (
+                <Typography color="error" variant="caption">
+                  {formErrors.end_date}
+                </Typography>
+              )}
+            </div>
           </Box>
-        </Box>
-      </Modal>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal} sx={{ color: colors.grey[100] }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSave}
+            variant="contained" 
+            sx={{
+              backgroundColor: '#ffd700',
+              color: colors.grey[100],
+              fontWeight: "bold",
+              padding: "10px 20px",
+              "&:hover": {
+                backgroundColor: '#e6c200',
+              },
+            }}
+            disabled={
+              !!formErrors.start_date || 
+              !!formErrors.end_date || 
+              (currentManagement?.status === 'Allowed' && 
+                (!currentManagement.start_date || !currentManagement.end_date))
+            }
+          >
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}
+        autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        autoHideDuration={3000}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={handleCloseSnackbar}
           severity="success"
           sx={{ width: "100%" }}
         >
-          Selected rows deleted
+          Changes saved successfully!
         </Alert>
       </Snackbar>
     </Box>
   );
 };
 
-const modalStyle = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-  minWidth: 400,
-};
-
 const dataGridStyles = (colors) => ({
-  "& .MuiDataGrid-root": { border: "none" },
-  "& .MuiDataGrid-cell": { borderBottom: "none" },
-  "& .MuiDataGrid-columnHeaders": {
-    backgroundColor: colors.blueAccent[700],
+  "& .MuiDataGrid-root": {
+    border: "none",
+    fontSize: "16px",
+  },
+  "& .MuiDataGrid-cell": {
     borderBottom: "none",
+    color: colors.grey[100],
+    fontSize: "15px",
+  },
+  "& .name-column--cell": {
+    color: colors.grey[100],
+  },
+  "& .MuiDataGrid-columnHeaders": {
+    backgroundColor: colors.grey[400],
+    borderBottom: "none",
+    color: colors.grey[900],
+    fontSize: "16px",
+    fontWeight: "bold",
   },
   "& .MuiDataGrid-virtualScroller": {
-    backgroundColor: colors.primary[400],
+    backgroundColor: colors.grey[900],
   },
   "& .MuiDataGrid-footerContainer": {
     borderTop: "none",
-    backgroundColor: colors.blueAccent[700],
+    backgroundColor: colors.grey[400],
+    color: colors.grey[900],
   },
   "& .MuiCheckbox-root": {
-    color: `${colors.greenAccent[200]} !important`,
+    color: `${colors.grey[700]} !important`,
+  },
+  "& .MuiDataGrid-toolbarContainer": {
+    padding: "8px 16px",
+    backgroundColor: colors.grey[400],
+    "& .MuiButton-root": {
+      color: colors.grey[900],
+      fontSize: "14px",
+    },
+  },
+  "& .MuiTablePagination-root": {
+    color: colors.grey[900],
+    fontSize: "15px",
+    display: "flex",
+    alignItems: "center",
+    "& .MuiTablePagination-selectLabel": {
+      fontSize: "15px",
+      marginBottom: 0,
+      marginTop: 0,
+    },
+    "& .MuiTablePagination-displayedRows": {
+      fontSize: "15px",
+      marginBottom: 0,
+      marginTop: 0,
+    },
+    "& .MuiSelect-select": {
+      fontSize: "15px",
+      paddingTop: 0,
+      paddingBottom: 0,
+    },
+    "& .MuiTablePagination-select": {
+      marginRight: "8px",
+      marginLeft: "8px",
+    },
+    "& .MuiTablePagination-toolbar": {
+      minHeight: "auto",
+      height: "48px",
+      display: "flex",
+      alignItems: "center",
+    },
+  },
+  "& .MuiIconButton-root": {
+    color: colors.grey[400],
   },
 });
 

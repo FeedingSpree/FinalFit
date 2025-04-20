@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
 import { Box, IconButton, Typography, useTheme } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom"; // Updated import
 import "react-pro-sidebar/dist/css/styles.css";
 import { tokens } from "../../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
@@ -40,7 +40,38 @@ const Sidebar = ({ isSidebar }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [selected, setSelected] = useState("Dashboard");
+  const location = useLocation(); // Added useLocation hook
+
+  // Updated initialization of selected state
+  const [selected, setSelected] = useState(() => {
+    const path = location.pathname;
+    const routeToTitle = {
+      '/dashboard': 'Dashboard',
+      '/live-feed': 'Live Feed',
+      '/team': 'Users',
+      '/contacts': 'Policies',
+      '/invoices': 'Audit Logs',
+      '/calendar': 'Calendar',
+      '/faq': 'FAQ Page'
+    };
+    return routeToTitle[path] || 'Dashboard';
+  });
+
+  // Added effect to update selected state when route changes
+  useEffect(() => {
+    const path = location.pathname;
+    const routeToTitle = {
+      '/dashboard': 'Dashboard',
+      '/live-feed': 'Live Feed',
+      '/team': 'Users',
+      '/contacts': 'Policies',
+      '/invoices': 'Audit Logs',
+      '/calendar': 'Calendar',
+      '/faq': 'FAQ Page'
+    };
+    setSelected(routeToTitle[path] || 'Dashboard');
+  }, [location]);
+
   const [userName, setUserName] = useState("Loading...");
 
   useEffect(() => {
@@ -145,7 +176,7 @@ const Sidebar = ({ isSidebar }) => {
             <Typography variant="h6" color={colors.grey[300]} sx={{ m: "15px 0 5px 20px" }}>
               Data
             </Typography>
-            <Item title="Accounts" to="/team" icon={<PeopleOutlinedIcon />} selected={selected} setSelected={setSelected} />
+            <Item title="Users" to="/team" icon={<PeopleOutlinedIcon />} selected={selected} setSelected={setSelected} />
             <Item title="Policies" to="/contacts" icon={<ContactsOutlinedIcon />} selected={selected} setSelected={setSelected} />
             <Item title="Audit Logs" to="/invoices" icon={<ReceiptOutlinedIcon />} selected={selected} setSelected={setSelected} />
 
