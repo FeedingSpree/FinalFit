@@ -10,6 +10,12 @@ import {
   Alert,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import { 
+  GridToolbarContainer,
+  GridToolbarFilterButton,
+  GridToolbarDensitySelector,
+  GridToolbarExport
+} from '@mui/x-data-grid';
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
 
@@ -21,6 +27,16 @@ import {
   deleteViolationLog
 } from "../../services/violationLogsService.ts";
 
+const CustomToolbar = () => {
+  return (
+    <GridToolbarContainer>
+      <GridToolbarFilterButton />
+      <GridToolbarDensitySelector />
+      <GridToolbarExport />
+    </GridToolbarContainer>
+  );
+};
+
 const AuditLogs = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
@@ -29,6 +45,16 @@ const AuditLogs = () => {
   const [currentLog, setCurrentLog] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState([]);
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+    quickFilterValues: [],
+  });
+  const [sortModel, setSortModel] = useState([
+    {
+      field: 'date',
+      sort: 'desc',
+    },
+  ]);
 
   useEffect(() => {
     fetchLogs();
@@ -50,10 +76,19 @@ const AuditLogs = () => {
   };
 
   const handleSaveLog = async () => {
+    const formattedLog = {
+      ...currentLog,
+      violation_id: currentLog.violation_id || `VIO-${Date.now()}`,
+      // Keep the date in yyyy-mm-dd format
+      date: currentLog.date,
+      // Keep the time in HH:mm:ss format
+      time: currentLog.time
+    };
+
     if (currentLog.id) {
-      await updateViolationLog(currentLog.id, currentLog);
+      await updateViolationLog(currentLog.id, formattedLog);
     } else {
-      await addViolationLog(currentLog);
+      await addViolationLog(formattedLog);
     }
     await fetchLogs();
     handleCloseModal();
@@ -78,54 +113,82 @@ const AuditLogs = () => {
   };
 
   const columns = [
-    { field: "id", headerName: "LOGID" },
-    { field: "violation", headerName: "VIOLATION", flex: 1, cellClassName: "violation-column--cell" },
-    { field: "building_number", headerName: "BUILDING NUMBER", flex: 1 },
-    { field: "floor_number", headerName: "FLOOR NUMBER", flex: 1 },
+    { 
+      field: "violation_id", 
+      headerName: "Violation ID",
+      flex: 0.7,
+    },
+    { 
+      field: "violation", 
+      headerName: "Violation", 
+      flex: 1, 
+      cellClassName: "violation-column--cell" 
+    },
+    { 
+      field: "building_number", 
+      headerName: "Building Number", 
+      flex: 1 
+    },
+    { 
+      field: "floor_number", 
+      headerName: "Floor Number", 
+      flex: 1 
+    },
     {
-      field: "timestamp",
-      headerName: "DATE & TIME",
+      field: "date",
+      headerName: "Date",
       flex: 1,
       valueFormatter: ({ value }) => {
         if (!value) return '';
-        const date = value instanceof Date ? value : new Date(value);
-        return date.toLocaleString('en-PH', {
-          timeZone: 'Asia/Manila',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        });
+        // Split the yyyy-mm-dd format
+        const [year, month, day] = value.split('-');
+        // Create date string in desired format
+        const months = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
+      }
+    },
+    {
+      field: "time",
+      headerName: "Time",
+      flex: 1,
+      valueFormatter: ({ value }) => {
+        if (!value) return '';
+        // Convert 24-hour format to 12-hour format
+        const [hours, minutes, seconds] = value.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes}:${seconds} ${ampm}`;
       }
     },
   ];
 
   return (
     <Box m="20px">
-      <Header title="Audit Logs" subtitle="List of Violators" />
-
-      <Box
-        m="40px 0 0 0"
-        height="75vh"
-        sx={{
-          "& .MuiDataGrid-root": { border: "none" },
-          "& .MuiDataGrid-cell": { borderBottom: "none" },
-          "& .violation-column--cell": { color: colors.greenAccent[300] },
-          "& .MuiDataGrid-columnHeaders": { backgroundColor: colors.blueAccent[700], borderBottom: "none" },
-          "& .MuiDataGrid-virtualScroller": { backgroundColor: colors.primary[400] },
-          "& .MuiDataGrid-footerContainer": { borderTop: "none", backgroundColor: colors.blueAccent[700] },
-          "& .MuiCheckbox-root": { color: `${colors.greenAccent[200]} !important` },
-        }}
-      >
+      <Header title="Detection Logs" subtitle="Logging and Monitoring of Detections" />
+      <Box height="85vh">
         <DataGrid
           checkboxSelection
           rows={logs}
           columns={columns}
+          components={{
+            Toolbar: CustomToolbar
+          }}
+          sortModel={sortModel}
+          onSortModelChange={(newModel) => setSortModel(newModel)}
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
           onSelectionModelChange={(ids) => setSelectedRows(ids)}
           onRowDoubleClick={(params) => handleOpenModal(params.row)}
+          initialState={{
+            sorting: {
+              sortModel: [{ field: 'date', sort: 'desc' }],
+            },
+          }}
+          sx={dataGridStyles(colors)}
         />
       </Box>
 
@@ -135,11 +198,7 @@ const AuditLogs = () => {
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
-        <Box sx={{ ...modalStyle, backgroundColor: colors.primary[500], color: colors.grey[100] }}>
-          <Typography id="modal-modal-title" variant="h6" component="h2">
-            {currentLog?.id ? 'Edit Log' : 'Add Log'}
-          </Typography>
-
+        <Box sx={{backgroundColor: colors.primary[500], color: colors.grey[100] }}>
           <TextField
             label="Violation"
             fullWidth
@@ -171,21 +230,44 @@ const AuditLogs = () => {
           />
 
           <TextField
-            label="Timestamp"
+            label="Date"
             fullWidth
             margin="normal"
-            name="timestamp"
-            type="datetime-local"
+            name="date"
+            type="date"
             value={
-              currentLog?.timestamp
-                ? new Date(currentLog.timestamp).toISOString().slice(0, 16)
+              currentLog?.date
+                ? new Date(currentLog.date).toISOString().split('T')[0]
                 : ''
             }
             onChange={(e) => {
-              const isoDate = new Date(e.target.value).toISOString();
-              setCurrentLog({ ...currentLog, timestamp: isoDate });
+              const date = new Date(e.target.value);
+              setCurrentLog({ ...currentLog, date: date.toISOString() });
             }}
             sx={textFieldStyle(colors)}
+            InputLabelProps={{ shrink: true }}
+          />
+
+          <TextField
+            label="Time"
+            fullWidth
+            margin="normal"
+            name="time"
+            type="time"
+            value={
+              currentLog?.time
+                ? new Date(currentLog.time).toISOString().split('T')[1].substring(0, 5)
+                : ''
+            }
+            onChange={(e) => {
+              const [hours, minutes] = e.target.value.split(':');
+              const time = new Date();
+              time.setHours(hours);
+              time.setMinutes(minutes);
+              setCurrentLog({ ...currentLog, time: time.toISOString() });
+            }}
+            sx={textFieldStyle(colors)}
+            InputLabelProps={{ shrink: true }}
           />
 
           <Box mt={2}>
@@ -204,20 +286,83 @@ const AuditLogs = () => {
   );
 };
 
-const modalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-  minWidth: 400
-};
-
 const textFieldStyle = (colors) => ({
   input: { color: colors.grey[100] },
   label: { color: colors.grey[100] }
+});
+
+const dataGridStyles = (colors) => ({
+  "& .MuiDataGrid-root": {
+    border: "none",
+    fontSize: "16px",
+  },
+  "& .MuiDataGrid-cell": {
+    borderBottom: "none",
+    color: colors.grey[100],
+    fontSize: "15px",
+  },
+  "& .name-column--cell": {
+    color: colors.grey[100],
+  },
+  "& .MuiDataGrid-columnHeaders": {
+    backgroundColor: colors.grey[400],
+    borderBottom: "none",
+    color: colors.grey[900],
+    fontSize: "16px",
+    fontWeight: "bold",
+  },
+  "& .MuiDataGrid-virtualScroller": {
+    backgroundColor: colors.grey[900],
+  },
+  "& .MuiDataGrid-footerContainer": {
+    borderTop: "none",
+    backgroundColor: colors.grey[400],
+    color: colors.grey[900],
+  },
+  "& .MuiCheckbox-root": {
+    color: `${colors.grey[700]} !important`,
+  },
+  "& .MuiDataGrid-toolbarContainer": {
+    padding: 2,
+    "& .MuiButton-root": {
+      color: colors.grey[100],
+      fontSize: "14px",
+    },
+  },
+  "& .MuiTablePagination-root": {
+    color: colors.grey[900],
+    fontSize: "15px",
+    display: "flex",
+    alignItems: "center",
+    "& .MuiTablePagination-selectLabel": {
+      fontSize: "15px",
+      marginBottom: 0,
+      marginTop: 0,
+    },
+    "& .MuiTablePagination-displayedRows": {
+      fontSize: "15px",
+      marginBottom: 0,
+      marginTop: 0,
+    },
+    "& .MuiSelect-select": {
+      fontSize: "15px",
+      paddingTop: 0,
+      paddingBottom: 0,
+    },
+    "& .MuiTablePagination-select": {
+      marginRight: "8px",
+      marginLeft: "8px",
+    },
+    "& .MuiTablePagination-toolbar": {
+      minHeight: "auto",
+      height: "48px",
+      display: "flex",
+      alignItems: "center",
+    },
+  },
+  "& .MuiIconButton-root": {
+    color: colors.grey[400],
+  },
 });
 
 export default AuditLogs;
