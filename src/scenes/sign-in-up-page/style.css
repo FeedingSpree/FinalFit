@@ -154,6 +154,13 @@ a {
     margin: 15px 0px; 
 } 
 
+.error-message {
+    color: #ff0000;
+    font-size: 14px;
+    margin: 10px 0;
+    text-align: center;
+}
+
 button { 
     border-radius: 20px; 
     border: 1px solid var(--grad-clr1); 

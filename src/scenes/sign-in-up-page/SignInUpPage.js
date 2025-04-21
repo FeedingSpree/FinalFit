@@ -1,17 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../../firebase.tsx"; // adjust the path as needed
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from "firebase/auth";
+import { getUsers } from "../../services/userService.ts";
 import "./style.css";
-import Logo from "../../assets/campusfit_logo.png";  // Update path to src/assets
 
 function SignInUpPage() {
   const [isRightPanelActive, setIsRightPanelActive] = useState(false);
-  const [signInData, setSignInData] = useState({ email: "", password: "" });
-  const [signUpData, setSignUpData] = useState({ name: "", email: "", password: "" });
+  const [signInData, setSignInData] = useState({ username: "", password: "" });
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSignInClick = () => setIsRightPanelActive(false);
@@ -19,20 +14,28 @@ function SignInUpPage() {
   const handleSignInChange = (e) => {
     const { name, value } = e.target;
     setSignInData({ ...signInData, [name]: value });
-  };
-
-  const handleSignUpChange = (e) => {
-    const { name, value } = e.target;
-    setSignUpData({ ...signUpData, [name]: value });
+    setError(""); // Clear error when user types
   };
 
   const handleSignInSubmit = async (event) => {
     event.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, signInData.email, signInData.password);
-      navigate("/dashboard");
+      const users = await getUsers();
+      const user = users.find(
+        (u) => 
+          u.username === signInData.username && 
+          u.password === signInData.password
+      );
+
+      if (user) {
+        // Store user info in sessionStorage or context if needed
+        sessionStorage.setItem('user', JSON.stringify(user));
+        navigate("/dashboard");
+      } else {
+        setError("Invalid username or password");
+      }
     } catch (error) {
-      alert("Sign In Failed: " + error.message);
+      setError("Sign In Failed: " + error.message);
     }
   };
 
@@ -44,10 +47,10 @@ function SignInUpPage() {
             <h1>Sign in</h1>
             <div className="infield">
               <input
-                type="email"
+                type="text"
                 placeholder="Username"
-                name="email"
-                value={signInData.email}
+                name="username"
+                value={signInData.username}
                 onChange={handleSignInChange}
                 required
               />
@@ -62,6 +65,7 @@ function SignInUpPage() {
                 required
               />
             </div>
+            {error && <div className="error-message">{error}</div>}
             <button type="submit">Sign In</button>
           </form>
         </div>
