@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import "./style.css";
+import Logo from "../../assets/campusfit_logo.png";  // Update path to src/assets
 
 function SignInUpPage() {
   const [isRightPanelActive, setIsRightPanelActive] = useState(false);
@@ -14,7 +15,6 @@ function SignInUpPage() {
   const navigate = useNavigate();
 
   const handleSignInClick = () => setIsRightPanelActive(false);
-  const handleSignUpClick = () => setIsRightPanelActive(true);
 
   const handleSignInChange = (e) => {
     const { name, value } = e.target;
@@ -36,33 +36,16 @@ function SignInUpPage() {
     }
   };
 
-  const handleSignUpSubmit = async (event) => {
-    event.preventDefault();
-    try {
-      await createUserWithEmailAndPassword(auth, signUpData.email, signUpData.password);
-      alert("Account created! You can now sign in.");
-      setIsRightPanelActive(false);
-    } catch (error) {
-      alert("Sign Up Failed: " + error.message);
-    }
-  };
-
   return (
     <div className="page-container">
       <div className={`container ${isRightPanelActive ? "right-panel-active" : ""}`} id="container">
         <div className="form-container sign-in-container">
           <form onSubmit={handleSignInSubmit}>
             <h1>Sign in</h1>
-            <div className="social-container">
-              <a href="#" className="social"><i className="fab fa-facebook-f"></i></a>
-              <a href="#" className="social"><i className="fab fa-google-plus-g"></i></a>
-              <a href="#" className="social"><i className="fab fa-linkedin-in"></i></a>
-            </div>
-            <span>or use your account</span>
             <div className="infield">
               <input
                 type="email"
-                placeholder="Email"
+                placeholder="Username"
                 name="email"
                 value={signInData.email}
                 onChange={handleSignInChange}
@@ -79,51 +62,7 @@ function SignInUpPage() {
                 required
               />
             </div>
-            <a href="#" className="forgot">Forgot your password?</a>
             <button type="submit">Sign In</button>
-          </form>
-        </div>
-
-        <div className="form-container sign-up-container">
-          <form onSubmit={handleSignUpSubmit}>
-            <h1>Create Account</h1>
-            <div className="social-container">
-              <a href="#" className="social"><i className="fab fa-facebook-f"></i></a>
-              <a href="#" className="social"><i className="fab fa-google-plus-g"></i></a>
-              <a href="#" className="social"><i className="fab fa-linkedin-in"></i></a>
-            </div>
-            <span>or use your email for registration</span>
-            <div className="infield">
-              <input
-                type="text"
-                placeholder="Name"
-                name="name"
-                value={signUpData.name}
-                onChange={handleSignUpChange}
-                required
-              />
-            </div>
-            <div className="infield">
-              <input
-                type="email"
-                placeholder="Email"
-                name="email"
-                value={signUpData.email}
-                onChange={handleSignUpChange}
-                required
-              />
-            </div>
-            <div className="infield">
-              <input
-                type="password"
-                placeholder="Password"
-                name="password"
-                value={signUpData.password}
-                onChange={handleSignUpChange}
-                required
-              />
-            </div>
-            <button type="submit">Sign Up</button>
           </form>
         </div>
         <div className="overlay-container">
@@ -134,9 +73,8 @@ function SignInUpPage() {
               <button className="ghost" onClick={handleSignInClick}>Sign In</button>
             </div>
             <div className="overlay-panel overlay-right">
-              <h1>Hello, Friend!</h1>
-              <p>Enter your personal details and start your journey with us</p>
-              <button className="ghost" onClick={handleSignUpClick}>Sign Up</button>
+              <h1>Welcome to CAMPUSFIT!</h1>
+              <p>Get started by entering your details and make the most of our service.</p>
             </div>
           </div>
         </div>

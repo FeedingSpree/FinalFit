@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Typography,
   useTheme,
   Button,
   Modal,
   TextField,
-  Snackbar,
   Alert,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
@@ -43,7 +41,6 @@ const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLog, setCurrentLog] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState([]);
   const [filterModel, setFilterModel] = useState({
     items: [],
@@ -94,22 +91,9 @@ const AuditLogs = () => {
     handleCloseModal();
   };
 
-  const handleDeleteSelectedRows = async () => {
-    for (const id of selectedRows) {
-      await deleteViolationLog(id);
-    }
-    await fetchLogs();
-    setSnackbarOpen(true);
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCurrentLog({ ...currentLog, [name]: value });
-  };
-
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnackbarOpen(false);
   };
 
   const columns = [
@@ -169,7 +153,7 @@ const AuditLogs = () => {
   return (
     <Box m="20px">
       <Header title="Detection Logs" subtitle="Logging and Monitoring of Detections" />
-      <Box height="85vh">
+      <Box m="0px 0 0 0" height="85vh">
         <DataGrid
           checkboxSelection
           rows={logs}
@@ -198,7 +182,7 @@ const AuditLogs = () => {
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
-        <Box sx={{backgroundColor: colors.primary[500], color: colors.grey[100] }}>
+        <Box>
           <TextField
             label="Violation"
             fullWidth
@@ -276,12 +260,6 @@ const AuditLogs = () => {
           </Box>
         </Box>
       </Modal>
-
-      <Snackbar open={snackbarOpen} onClose={handleCloseSnackbar}>
-        <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
-          Logs deleted
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
@@ -328,6 +306,14 @@ const dataGridStyles = (colors) => ({
       color: colors.grey[100],
       fontSize: "14px",
     },
+  },
+  "& .MuiDataGrid-cell:focus": {
+    outline: "  ",
+  },
+  "& .MuiDataGrid-row": { // hover color
+    "&:hover": {
+      backgroundColor: colors.grey[800],
+     },
   },
   "& .MuiTablePagination-root": {
     color: colors.grey[900],

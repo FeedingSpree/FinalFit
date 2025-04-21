@@ -7,9 +7,9 @@
 }
 
 :root {
-    --linear-grad: linear-gradient(to right, #141E30, #243B55);
-    --grad-clr1: #141E30;
-    --grad-clr2: #243B55;
+    --linear-grad: linear-gradient(to right, #1F2A40, #ffd700);
+    --grad-clr1: #1F2A40;  /* grey900 */
+    --grad-clr2: #ffd700;  /* golden yellow */
 }
 
 body {
@@ -27,6 +27,25 @@ body {
     align-items: center;
     height: 100vh;
     width: 100%;
+    position: relative;
+}
+
+/* Add this new style for the background logo */
+.page-container::after {
+    content: '';
+    position: fixed;
+    bottom: -200px;  /* Moved further down */
+    right: -200px;   /* Moved further right */
+    width: 1000px;   /* Made even larger */
+    height: 1000px;  /* Made even larger */
+    background-image: url('../../assets/campusfit_logo.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom right;
+    opacity: 0.1;
+    z-index: -1;
+    pointer-events: none;
+    transform: rotate(15deg);
 }
 
 .container {
@@ -58,6 +77,12 @@ body {
     left: 0;
     z-index: 2;
     transform: translateX(0);
+}
+
+.sign-in-container button {
+    color: #000; /* Make sign in button text black */
+    background: #ffd700;
+    border: 1px solid #1F2A40;
 }
 
 form { 
@@ -129,11 +154,6 @@ a {
     margin: 15px 0px; 
 } 
 
-a.forgot { 
-    padding-bottom: 3px; 
-    border-bottom: 2px solid #EEE; 
-} 
-
 button { 
     border-radius: 20px; 
     border: 1px solid var(--grad-clr1); 
@@ -170,7 +190,7 @@ button {
 .overlay { 
     position: relative; 
     background: var(--linear-grad); 
-    color: #FFF; 
+    color: #FFF; /* Change text color to black */
     left: -150%; 
     height: 100%; 
     width: 250%; 
@@ -193,15 +213,19 @@ button {
 .overlay-left { 
     right: 60%; 
     transform: translateX(-12%); 
+    background: #1F2A40; /* grey900 */
+    color: #fff;
 } 
 
 .overlay-right { 
     right: 0; 
-    transform: translateX(0); 
+    transform: translateX(0);
+    background: #191919; /* golden yellow */
+    color: #FFF;
 }
 
 .overlay-panel h1 { 
-    color: #FFF; 
+    color: inherit; /* This will inherit from parent panel color */
 } 
 
 p { 
@@ -222,6 +246,28 @@ p {
     font-weight: bold;
     text-transform: uppercase;
     transition: 0.3s ease;
+}
+
+.overlay-right button { 
+    border: 1px solid #000;
+    color: #000;
+    background-color: transparent;
+}
+
+.overlay-right button:hover {
+    background-color: #000;
+    color: #ffd700;
+}
+
+.overlay-left button { 
+    border: 1px solid #fff;
+    color: #fff;
+    background-color: transparent;
+}
+
+.overlay-left button:hover {
+    background-color: #fff;
+    color: #1F2A40;
 }
 
 .overlay-panel button:hover {
@@ -282,6 +328,42 @@ p {
   100% { 
     width: 143.67px; 
   } 
+}
+
+/* Add these new styles */
+.password-field {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.password-field input {
+    padding-right: 45px; /* Make room for the button */
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.password-toggle:hover {
+    color: var(--grad-clr1);
+}
+
+.password-toggle svg {
+    width: 20px;
+    height: 20px;
 }
 
 footer {

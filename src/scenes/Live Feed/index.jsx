@@ -16,7 +16,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  IconButton
+  IconButton,
+  Snackbar,
+  Alert
 } from "@mui/material";
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { tokens } from "../../theme";
@@ -28,42 +30,17 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
   const [error, setError] = useState(null);
   const playerRef = useRef(null);
 
-  const handleRefresh = () => {
-    setIsLoading(true);
-    setError(null);
-    if (playerRef.current) {
-      playerRef.current.src = `http://localhost:5000/api/stream?t=${Date.now()}`;
-    }
-  };
-
   return (
     <Box
       sx={{
         width: '100%',
         height: '100%',
-        border: `1px solid ${colors.grey[800]}`,
         borderRadius: '8px',
         overflow: 'hidden',
-        backgroundColor: colors.primary[500],
+        backgroundColor: colors.grey[900],
         position: 'relative'
       }}
     >
-      <IconButton
-        onClick={handleRefresh}
-        sx={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 3,
-          '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          },
-        }}
-      >
-        <RefreshIcon sx={{ color: colors.grey[100] }} />
-      </IconButton>
-
       {isLoading && (
         <Box
           sx={{
@@ -125,6 +102,17 @@ const LiveFeed = () => {
   const [selectedFloor, setSelectedFloor] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const { violations } = useDetection();
+  const [showAlert, setShowAlert] = useState(false);
+  const [lastViolationCount, setLastViolationCount] = useState(0);
+
+  useEffect(() => {
+    if (violations.length > lastViolationCount) {
+      setShowAlert(true);
+      const audio = new Audio('/alert.mp3'); // Add an alert.mp3 to your public folder
+      audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+    setLastViolationCount(violations.length);
+  }, [violations.length]);
 
   const commonSelectStyles = {
     backgroundColor: colors.primary[400],
@@ -160,9 +148,9 @@ const LiveFeed = () => {
         >
           <Box
             sx={{
-              backgroundColor: colors.primary[400],
-              height: gridSize === 1 ? "calc(100vh - 300px)" : "450px",
-              borderRadius: "4px",
+              backgroundColor: colors.grey[900],
+              height: gridSize === 1 ? "calc(100vh - 200px)" : "450px",
+              borderRadius: "10px",
               position: 'relative',
               overflow: 'hidden',
               padding: '16px'
@@ -191,7 +179,6 @@ const LiveFeed = () => {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
                 padding: '20px 10px 10px',
                 zIndex: 2,
                 borderRadius: '0 0 4px 4px'
@@ -201,7 +188,7 @@ const LiveFeed = () => {
                 variant="subtitle1" 
                 color={colors.grey[100]}
                 sx={{
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                  //textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
                 }}
               >
                 Building {selectedBuilding || "?"} - Floor {selectedFloor || "?"} - Camera {i + 1}
@@ -224,18 +211,76 @@ const LiveFeed = () => {
       <Box mt={3}>
         <Paper
           sx={{
-            backgroundColor: colors.primary[400],
+            backgroundColor: colors.grey[900],
             p: 2,
             cursor: 'pointer',
-            border: '2px solid #ff0000',
-            borderRadius: '4px'
+            border: showAlert ? `2px solid ${colors.redAccent[500]}` : '2px solid #ff0000',
+            borderRadius: '4px',
+            transition: 'all 0.3s ease',
+            animation: showAlert ? 'pulse 1.5s infinite' : 'none',
+            '@keyframes pulse': {
+              '0%': {
+                boxShadow: '0 0 0 0 rgba(255, 0, 0, 0.4)',
+              },
+              '70%': {
+                boxShadow: '0 0 0 10px rgba(255, 0, 0, 0)',
+              },
+              '100%': {
+                boxShadow: '0 0 0 0 rgba(255, 0, 0, 0)',
+              },
+            },
           }}
           onClick={() => setOpenDialog(true)}
         >
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h5">
+          <Box 
+            display="flex" 
+            justifyContent="space-between" 
+            alignItems="center"
+          >
+            <Typography 
+              variant="h5" 
+              sx={{
+                color: showAlert ? colors.redAccent[500] : colors.grey[100],
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              {showAlert && (
+                <Box
+                  component="span"
+                  sx={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: colors.redAccent[500],
+                    animation: 'blink 1s infinite',
+                    '@keyframes blink': {
+                      '0%': { opacity: 0 },
+                      '50%': { opacity: 1 },
+                      '100%': { opacity: 0 },
+                    },
+                  }}
+                />
+              )}
               {violations.length} Dress Code Violations Detected in the Past Hour
             </Typography>
+            <Box>
+              <IconButton 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAlert(false);
+                }}
+                sx={{ 
+                  color: colors.grey[100],
+                  '&:hover': {
+                    color: colors.redAccent[500]
+                  }
+                }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Box>
           </Box>
         </Paper>
 
@@ -246,7 +291,7 @@ const LiveFeed = () => {
           fullWidth
           PaperProps={{
             sx: {
-              backgroundColor: colors.primary[400]
+              backgroundColor: colors.grey[900]
             }
           }}
         >
@@ -259,7 +304,7 @@ const LiveFeed = () => {
                 <ListItem
                   key={violation.violation_id}
                   sx={{
-                    backgroundColor: colors.primary[300],
+                    backgroundColor: colors.grey[800],
                     mb: 1,
                     borderRadius: "4px"
                   }}
@@ -285,6 +330,22 @@ const LiveFeed = () => {
           </DialogContent>
         </Dialog>
       </Box>
+
+      <Snackbar
+        open={showAlert}
+        autoHideDuration={5000}
+        onClose={() => setShowAlert(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          sx={{ width: '100%' }}
+          onClose={() => setShowAlert(false)}
+        >
+          New Dress Code Violation Detected!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
