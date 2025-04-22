@@ -29,14 +29,7 @@ function SignInUpPage() {
   };
 
   // Function to create log entry
-  const createUserLog = async (username, action) => {
-    const log = {
-      log_id: generateLogId(),
-      username: username,
-      action: action,
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toTimeString().split(' ')[0]
-    };
+  const createUserLog = async (log) => {
     await addUserLog(log);
   };
 
@@ -44,34 +37,55 @@ function SignInUpPage() {
     event.preventDefault();
     try {
       const users = await getUsers();
-      const user = users.find(
-        (u) => 
-          u.username === signInData.username && 
-          u.password === signInData.password
+      const userExists = users.some(u => u.username === signInData.username);
+      const user = users.find(u => 
+        u.username === signInData.username && 
+        u.password === signInData.password
       );
 
-      if (user) {
-        // Generate log ID
-        const logId = generateLogId();
-        
+      // Generate log ID first - will be used for the entire session
+      const logId = generateLogId();
+
+      if (!userExists) {
+        // Log invalid username attempt
+        await createUserLog({
+          log_id: logId,
+          username: "Invalid Username",
+          action: "Login Attempt",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
+        setError("Invalid username or password");
+      } else if (!user) {
+        // Log failed login attempt
+        await createUserLog({
+          log_id: logId,
+          username: signInData.username,
+          action: "Login Attempt",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
+        setError("Invalid password");
+      } else {
         // Log successful login
-        await createUserLog(signInData.username, "Logged In");
+        await createUserLog({
+          log_id: logId,
+          username: signInData.username,
+          action: "Logged In",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
         
-        // Store user info and log_id
+        // Store user info and log_id in session
         sessionStorage.setItem('user', JSON.stringify({
           ...user,
           log_id: logId
         }));
         
         navigate("/dashboard");
-      } else {
-        // Log failed login attempt
-        await createUserLog(signInData.username, "Login Attempt");
-        setError("Invalid username or password");
       }
     } catch (error) {
-      // Log error during login
-      await createUserLog(signInData.username, "Login Attempt");
+      console.error("Sign In Error:", error);
       setError("Sign In Failed: " + error.message);
     }
   };

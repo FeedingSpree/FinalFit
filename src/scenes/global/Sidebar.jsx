@@ -122,24 +122,18 @@ const Sidebar = ({ isSidebar }) => {
 
   const handleLogoutConfirm = async () => {
     try {
-      // Get current user from session storage
       const sessionUser = JSON.parse(sessionStorage.getItem('user'));
       
       if (sessionUser) {
-        // Create logout log
-        const now = new Date();
-        const log = {
-          log_id: sessionUser.log_id, // Use the same log_id
+        await addUserLog({
+          log_id: sessionUser.log_id,
           username: sessionUser.username,
           action: "Logged Out",
-          date: now.toISOString().split('T')[0],
-          time: now.toTimeString().split(' ')[0]
-        };
-
-        // Add log entry
-        await addUserLog(log);
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
       }
-
+      
       // Clear all session/local storage
       sessionStorage.clear();
       localStorage.clear();

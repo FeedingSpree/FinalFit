@@ -8,6 +8,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import Header from "../../components/Header";
 import React, { useEffect, useState } from "react";
 import { getUsers, addUser, updateUser, deleteUser } from "../../services/userService.ts";  // Assuming getUsers, addUser, updateUser, and deleteUser are in userService.ts
+import { addUserLog } from "../../services/userLogsService.ts"; // Add import for addUserLog
 import { color } from "d3-color";
 import { 
   GridToolbarContainer,
@@ -258,11 +259,21 @@ const Team = () => {
 
     // If no errors, proceed with submission
     try {
+      const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+      
       if (selectedUser) {
         // Update existing user
         await updateUser(selectedUser.id, {
           ...formData,
           password: selectedUser.password // Keep existing password
+        });
+        // Log the edit action
+        await addUserLog({
+          log_id: sessionUser.log_id,
+          username: sessionUser.username,
+          action: "Edited a User",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
         });
       } else {
         // Add new user
@@ -273,6 +284,14 @@ const Team = () => {
           password: generatedPassword
         };
         await addUser(userData);
+        // Log the add action
+        await addUserLog({
+          log_id: sessionUser.log_id,
+          username: sessionUser.username,
+          action: "Added User",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
       }
       
       // Refresh users list

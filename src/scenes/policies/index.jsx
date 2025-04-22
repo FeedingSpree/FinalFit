@@ -28,6 +28,7 @@ import {
   updateManagement,
   deleteManagement,
 } from "../../services/managementService.ts";
+import { addUserLog } from "../../services/userLogsService.ts";
 
 const validateDate = (dateStr) => {
   const regex = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])-([12]\d{3})$/;
@@ -119,13 +120,30 @@ const AuditLogs = () => {
     }
 
     try {
+      const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+      
       if (currentManagement?.id) {
         await updateManagement(currentManagement.id, currentManagement);
+        
+        // Log the status change when saving
+        if (sessionUser) {
+          await addUserLog({
+            log_id: sessionUser.log_id,
+            username: sessionUser.username,
+            action: currentManagement.status === 'Allowed' 
+              ? "Deactivated a Violation" 
+              : "Activated a Violation",
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().split(' ')[0]
+          });
+        }
       } else {
         await addManagement(currentManagement);
       }
+      
       fetchManagements();
       handleCloseModal();
+      setSnackbarOpen(true);
     } catch (err) {
       console.error("Save failed:", err);
     }

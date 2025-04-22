@@ -30,65 +30,81 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
     <Box
       sx={{
         width: '100%',
-        height: '100%',
-        borderRadius: '8px',
+        height: '80%',
+        borderRadius: '16px',
         overflow: 'hidden',
         backgroundColor: colors.grey[900],
         position: 'relative',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        boxShadow: `0 4px 8px rgba(0,0,0,0.3)`,
       }}
     >
-      {isLoading && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: colors.grey[100],
-            zIndex: 2
-          }}
-        >
-          {'Loading...'}
-        </Box>
-      )}
       <Box
-        ref={playerRef}
-        component="img"
-        src="http://localhost:5000/api/stream"
         sx={{
-          width: '100%',
+          width: "1550px",
           height: '100%',
-          border: 'none',
-          objectFit: 'cover', // Changed from 'contain' to 'cover'
-          display: 'block',
-          opacity: isLoading ? 0 : 1,
-          transition: 'opacity 0.3s'
+          borderRadius: '12px',
+          overflow: 'hidden',
+          backgroundColor: colors.primary[400],
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          border: `2px solid ${colors.primary[500]}`,
         }}
-        onLoad={() => setIsLoading(false)}
-        onError={(e) => {
-          console.error("Error loading feed:", e);
-          setError("Failed to load video feed. Retrying...");
-          setIsLoading(false);
-        }}
-      />
-      {error && (
+      >
         <Box
+          ref={playerRef}
+          component="img"
+          src="http://localhost:5000/api/stream"
           sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: colors.redAccent[500],
-            textAlign: 'center',
-            zIndex: 2
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            objectFit: 'fill',
+            objectPosition: 'center',
+            display: 'block',
+            opacity: isLoading ? 0 : 1,
+            transition: 'opacity 0.3s'
           }}
-        >
-          {error}
-        </Box>
-      )}
+          onLoad={() => setIsLoading(false)}
+          onError={(e) => {
+            console.error("Error loading feed:", e);
+            setError("Failed to load video feed. Retrying...");
+            setIsLoading(false);
+          }}
+        />
+        {isLoading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: colors.grey[100],
+              zIndex: 2
+            }}
+          >
+            {'Loading...'}
+          </Box>
+        )}
+        {error && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: colors.redAccent[500],
+              textAlign: 'center',
+              zIndex: 2
+            }}
+          >
+            {error}
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };
@@ -107,32 +123,11 @@ const LiveFeed = () => {
   useEffect(() => {
     if (violations.length > lastViolationCount) {
       setShowAlert(true);
-      const audio = new Audio('/alert.mp3'); // Add an alert.mp3 to your public folder
+      const audio = new Audio('/alert.mp3');
       audio.play().catch(e => console.log('Audio play failed:', e));
     }
     setLastViolationCount(violations.length);
   }, [violations.length]);
-
-  const commonSelectStyles = {
-    backgroundColor: colors.primary[400],
-    height: "45px",
-    "& .MuiSelect-select": {
-      paddingTop: "10px",
-    },
-    "& .MuiOutlinedInput-notchedOutline": {
-      border: "none"
-    },
-    "&:hover .MuiOutlinedInput-notchedOutline": {
-      border: "none"
-    },
-    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      border: "none"
-    }
-  };
-
-  const handleGridChange = (event) => {
-    setGridSize(event.target.value);
-  };
 
   const renderVideoFeeds = () => {
     const feeds = [];
@@ -147,51 +142,54 @@ const LiveFeed = () => {
         >
           <Box
             sx={{
-              backgroundColor: colors.grey[900],
+              backgroundColor: colors.primary[400],
               height: gridSize === 1 ? "calc(100vh - 200px)" : "450px",
-              borderRadius: "10px",
+              borderRadius: "16px",
               position: 'relative',
               overflow: 'hidden',
-              padding: '16px'
+              padding: '20px',
+              boxShadow: `0 4px 12px rgba(0,0,0,0.2)`,
             }}
           >
             <Box
               sx={{
-                position: 'relative',
-                height: 'calc(100% - 40px)',
+                backgroundColor: colors.grey[900],
+                height: '100%',
                 width: '100%',
-                borderRadius: '8px',
-                overflow: 'hidden'
+                borderRadius: '12px',
+                overflow: 'hidden',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <MiniWebPlayer 
-                colors={colors}
-                buildingNumber={selectedBuilding || "1"}
-                floorNumber={selectedFloor || "1"}
-                cameraNumber={i + 1}
-              />
-            </Box>
-
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                padding: '20px 10px 10px',
-                zIndex: 2,
-                borderRadius: '0 0 4px 4px'
-              }}
-            >
-              <Typography 
-                variant="subtitle1" 
-                color={colors.grey[100]}
+              <Box
                 sx={{
-                  //textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                  position: 'relative',
+                  flex: 1,
+                  width: '100%',
                 }}
               >
-                Building {selectedBuilding || "?"} - Floor {selectedFloor || "?"} - Camera {i + 1}
-              </Typography>
+                <MiniWebPlayer 
+                  colors={colors}
+                  buildingNumber={selectedBuilding || "1"}
+                  floorNumber={selectedFloor || "1"}
+                  cameraNumber={i + 1}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  padding: '20px 10px 10px',
+                  zIndex: 2,
+                  borderRadius: '0 0 4px 4px'
+                }}
+              >
+              </Box>
             </Box>
           </Box>
         </Grid>
@@ -203,7 +201,12 @@ const LiveFeed = () => {
   return (
     <Box m="20px">
       <Header title="Live Feed"/>
-      <Grid container spacing={2}>
+      <Grid 
+        container 
+        spacing={2} 
+        justifyContent="center" // Center horizontally
+        alignItems="center"     // Center vertically if height permits
+      >
         {renderVideoFeeds()}
       </Grid>
 
@@ -218,24 +221,14 @@ const LiveFeed = () => {
             transition: 'all 0.3s ease',
             animation: showAlert ? 'pulse 1.5s infinite' : 'none',
             '@keyframes pulse': {
-              '0%': {
-                boxShadow: '0 0 0 0 rgba(255, 0, 0, 0.4)',
-              },
-              '70%': {
-                boxShadow: '0 0 0 10px rgba(255, 0, 0, 0)',
-              },
-              '100%': {
-                boxShadow: '0 0 0 0 rgba(255, 0, 0, 0)',
-              },
+              '0%': { boxShadow: '0 0 0 0 rgba(255, 0, 0, 0.4)' },
+              '70%': { boxShadow: '0 0 0 10px rgba(255, 0, 0, 0)' },
+              '100%': { boxShadow: '0 0 0 0 rgba(255, 0, 0, 0)' },
             },
           }}
           onClick={() => setOpenDialog(true)}
         >
-          <Box 
-            display="flex" 
-            justifyContent="space-between" 
-            alignItems="center"
-          >
+          <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography 
               variant="h5" 
               sx={{
@@ -264,22 +257,20 @@ const LiveFeed = () => {
               )}
               {violations.length} Dress Code Violations Detected in the Past Hour
             </Typography>
-            <Box>
-              <IconButton 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowAlert(false);
-                }}
-                sx={{ 
-                  color: colors.grey[100],
-                  '&:hover': {
-                    color: colors.redAccent[500]
-                  }
-                }}
-              >
-                <RefreshIcon />
-              </IconButton>
-            </Box>
+            <IconButton 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAlert(false);
+              }}
+              sx={{ 
+                color: colors.grey[100],
+                '&:hover': {
+                  color: colors.redAccent[500]
+                }
+              }}
+            >
+              <RefreshIcon />
+            </IconButton>
           </Box>
         </Paper>
 
