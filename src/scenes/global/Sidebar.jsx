@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import { ProSidebar, Menu, MenuItem } from "react-pro-sidebar";
-import { Box, IconButton, Typography, useTheme } from "@mui/material";
-import { Link, useLocation } from "react-router-dom"; // Updated import
+import { Box, IconButton, Typography, useTheme, Dialog, DialogActions, DialogContent, DialogTitle, Button } from "@mui/material";
+import { Link, useLocation, useNavigate } from "react-router-dom"; // Add useNavigate
 import "react-pro-sidebar/dist/css/styles.css";
 import { tokens } from "../../theme";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import ContactsOutlinedIcon from "@mui/icons-material/ContactsOutlined";
+import RecentActorsOutlinedIcon from '@mui/icons-material/RecentActorsOutlined';
 import ReceiptOutlinedIcon from "@mui/icons-material/ReceiptOutlined";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
+import ExitToAppOutlinedIcon from '@mui/icons-material/ExitToAppOutlined';
 import PieChartOutlineOutlinedIcon from "@mui/icons-material/PieChartOutlineOutlined";
 import TimelineOutlinedIcon from "@mui/icons-material/TimelineOutlined";
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
@@ -19,15 +21,22 @@ import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import { getAuth } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase.tsx"; // update path as needed
+import { getUsers } from "../../services/userService.ts";
+import { addUserLog } from "../../services/userLogsService.ts";
 
 const Item = ({ title, to, icon, selected, setSelected }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  const handleClick = () => {
+    setSelected(title);
+  };
+
   return (
     <MenuItem
       active={selected === title}
       style={{ color: colors.grey[100] }}
-      onClick={() => setSelected(title)}
+      onClick={handleClick}
       icon={icon}
     >
       <Typography>{title}</Typography>
@@ -41,6 +50,7 @@ const Sidebar = ({ isSidebar }) => {
   const colors = tokens(theme.palette.mode);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation(); // Added useLocation hook
+  const navigate = useNavigate(); // Add navigate hook
 
   // Updated initialization of selected state
   const [selected, setSelected] = useState(() => {
@@ -50,7 +60,8 @@ const Sidebar = ({ isSidebar }) => {
       '/live-feed': 'Live Feed',
       '/team': 'Users',
       '/contacts': 'Policies',
-      '/invoices': 'Audit Logs',
+      '/invoices': 'Detection Logs',
+      '/audittrails': 'Audit Trails',
       '/calendar': 'Calendar',
       '/faq': 'FAQ Page'
     };
@@ -65,7 +76,8 @@ const Sidebar = ({ isSidebar }) => {
       '/live-feed': 'Live Feed',
       '/team': 'Users',
       '/contacts': 'Policies',
-      '/invoices': 'Audit Logs',
+      '/invoices': 'Detection Logs',
+      '/audittrails': 'Audit Trails',
       '/calendar': 'Calendar',
       '/faq': 'FAQ Page'
     };
@@ -73,20 +85,20 @@ const Sidebar = ({ isSidebar }) => {
   }, [location]);
 
   const [userName, setUserName] = useState("Loading...");
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchUserName = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
-
-      if (user) {
+      // Get user data from session storage
+      const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+      
+      if (sessionUser) {
         try {
-          const userRef = doc(db, "users", user.uid);
-          const userSnap = await getDoc(userRef);
-
-          if (userSnap.exists()) {
-            const data = userSnap.data();
-            setUserName(`${data.first_name} ${data.last_name}`);
+          const users = await getUsers();
+          const currentUser = users.find(u => u.username === sessionUser.username);
+          
+          if (currentUser) {
+            setUserName(currentUser.username);
           } else {
             setUserName("Unknown User");
           }
@@ -99,6 +111,53 @@ const Sidebar = ({ isSidebar }) => {
 
     fetchUserName();
   }, []);
+
+  const handleLogoutClick = () => {
+    setIsLogoutDialogOpen(true);
+  };
+
+  const handleLogoutCancel = () => {
+    setIsLogoutDialogOpen(false);
+  };
+
+  const handleLogoutConfirm = async () => {
+    try {
+      // Get current user from session storage
+      const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+      
+      if (sessionUser) {
+        // Create logout log
+        const now = new Date();
+        const log = {
+          log_id: sessionUser.log_id, // Use the same log_id
+          username: sessionUser.username,
+          action: "Logged Out",
+          date: now.toISOString().split('T')[0],
+          time: now.toTimeString().split(' ')[0]
+        };
+
+        // Add log entry
+        await addUserLog(log);
+      }
+
+      // Clear all session/local storage
+      sessionStorage.clear();
+      localStorage.clear();
+
+      // Reset all states
+      setUserName("Loading...");
+      setSelected("Dashboard");
+      setIsLogoutDialogOpen(false);
+
+      // Navigate to login page
+      navigate('/', { replace: true });
+      
+      // Force a page reload to clear all state
+      window.location.reload();
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
+  };
 
   return (
     <Box
@@ -178,17 +237,70 @@ const Sidebar = ({ isSidebar }) => {
             </Typography>
             <Item title="Users" to="/team" icon={<PeopleOutlinedIcon />} selected={selected} setSelected={setSelected} />
             <Item title="Policies" to="/contacts" icon={<ContactsOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="Audit Logs" to="/invoices" icon={<ReceiptOutlinedIcon />} selected={selected} setSelected={setSelected} />
+            <Item title="Detection Logs" to="/invoices" icon={<ReceiptOutlinedIcon />} selected={selected} setSelected={setSelected} />
+            <Item title="Audit Trails" to="/audittrails" icon={<RecentActorsOutlinedIcon />} selected={selected} setSelected={setSelected} />
 
             <Typography variant="h6" color={colors.grey[300]} sx={{ m: "15px 0 5px 20px" }}>
               Pages
             </Typography>
             <Item title="Calendar" to="/calendar" icon={<CalendarTodayOutlinedIcon />} selected={selected} setSelected={setSelected} />
             <Item title="FAQ Page" to="/faq" icon={<HelpOutlineOutlinedIcon />} selected={selected} setSelected={setSelected} />
-
+            <Item 
+              title="Logout" 
+              to="#" 
+              icon={<ExitToAppOutlinedIcon />} 
+              selected={selected} 
+              setSelected={() => {
+                setSelected("Logout");
+                handleLogoutClick();
+              }} 
+            />
           </Box>
         </Menu>
       </ProSidebar>
+
+      {/* Add the Logout Confirmation Dialog */}
+      <Dialog
+        open={isLogoutDialogOpen}
+        onClose={handleLogoutCancel}
+        PaperProps={{
+          sx: {
+            width: "350px",
+            padding: "10px",
+            borderRadius: "10px"
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: "bold",
+          color: colors.grey[100]
+        }}>
+          Confirm Logout
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mt: 1 }}>
+            Are you sure you want to log out? You will need to sign in again to access your account.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleLogoutCancel} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleLogoutConfirm}
+            sx={{
+              color: colors.grey[100],
+              fontWeight: "bold",
+              backgroundColor: '#ffd700',
+              "&:hover": {
+                backgroundColor: '#e6c200',
+              },
+            }}
+            variant="contained">
+            Logout
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

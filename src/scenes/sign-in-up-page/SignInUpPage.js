@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUsers } from "../../services/userService.ts";
+import { addUserLog } from "../../services/userLogsService.ts";
 import "./style.css";
 
 function SignInUpPage() {
@@ -17,6 +18,28 @@ function SignInUpPage() {
     setError(""); // Clear error when user types
   };
 
+  // Function to generate log ID
+  const generateLogId = () => {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const year = String(today.getFullYear()).slice(-2);
+    const randomLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    return `LOG${month}${day}${year}${randomLetter}`;
+  };
+
+  // Function to create log entry
+  const createUserLog = async (username, action) => {
+    const log = {
+      log_id: generateLogId(),
+      username: username,
+      action: action,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toTimeString().split(' ')[0]
+    };
+    await addUserLog(log);
+  };
+
   const handleSignInSubmit = async (event) => {
     event.preventDefault();
     try {
@@ -28,13 +51,27 @@ function SignInUpPage() {
       );
 
       if (user) {
-        // Store user info in sessionStorage or context if needed
-        sessionStorage.setItem('user', JSON.stringify(user));
+        // Generate log ID
+        const logId = generateLogId();
+        
+        // Log successful login
+        await createUserLog(signInData.username, "Logged In");
+        
+        // Store user info and log_id
+        sessionStorage.setItem('user', JSON.stringify({
+          ...user,
+          log_id: logId
+        }));
+        
         navigate("/dashboard");
       } else {
+        // Log failed login attempt
+        await createUserLog(signInData.username, "Login Attempt");
         setError("Invalid username or password");
       }
     } catch (error) {
+      // Log error during login
+      await createUserLog(signInData.username, "Login Attempt");
       setError("Sign In Failed: " + error.message);
     }
   };

@@ -5,10 +5,6 @@ import {
   Typography, 
   useTheme, 
   Grid, 
-  Select, 
-  MenuItem, 
-  FormControl, 
-  InputLabel,
   Paper,
   Dialog,
   DialogTitle,
@@ -38,7 +34,10 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
         borderRadius: '8px',
         overflow: 'hidden',
         backgroundColor: colors.grey[900],
-        position: 'relative'
+        position: 'relative',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
       }}
     >
       {isLoading && (
@@ -63,7 +62,7 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
           width: '100%',
           height: '100%',
           border: 'none',
-          objectFit: 'contain',
+          objectFit: 'cover', // Changed from 'contain' to 'cover'
           display: 'block',
           opacity: isLoading ? 0 : 1,
           transition: 'opacity 0.3s'

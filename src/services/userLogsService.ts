@@ -8,9 +8,10 @@ const userLogsCollectionRef = collection(db, "userlogs");
 // Create a new log
 export const addUserLog = async (log: {
   log_id: string;
+  username: string;
   action: string;
-  timestamp: Date;
-  user_id: string;
+  date: string;
+  time: string;
 }) => {
   try {
     await addDoc(userLogsCollectionRef, log);
