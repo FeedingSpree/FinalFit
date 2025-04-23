@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
-import Topbar from "./scenes/global/Topbar";
 import Sidebar from "./scenes/global/Sidebar";
 import Dashboard from "./scenes/dashboard";
 import Team from "./scenes/team";
@@ -22,6 +21,7 @@ import Calendar from "./scenes/calendar/calendar";
 import UserLogs from "./scenes/user logs";
 import LiveFeed from "./scenes/Live Feed"; // Import the Live Feed page
 import SignInUpPage from "./scenes/sign-in-up-page/SignInUpPage"; // Import SignInUpPage component
+import ViolationHandling from "./scenes/violation handling"; // Add this import
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from "./theme";
 import { DetectionProvider } from "./context/DetectionContext";
@@ -68,6 +68,7 @@ function App() {
                       <Route path="/faq" element={<FAQ />} />
                       <Route path="/calendar" element={<Calendar />} />
                       <Route path="/geography" element={<Geography />} />
+                      <Route path="/violations" element={<ViolationHandling />} /> {/* Add this route */}
                       <Route path="/live-feed" element={<LiveFeed />} />
                     </Routes>
                   </main>

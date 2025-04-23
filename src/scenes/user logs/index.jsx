@@ -147,8 +147,8 @@ const UserLogs = () => {
 
   return (
     <Box m="20px">
-      <Header title="User Logs" subtitle="Logging and Monitoring of User Activities" />
-      <Box m="0px 0 0 0" height="85vh">
+      <Header title="Audit Trails"/>
+      <Box m="0px 0 0 0" height="87vh">
         <DataGrid
           checkboxSelection
           rows={logs}
@@ -167,7 +167,11 @@ const UserLogs = () => {
               sortModel: [{ field: 'timestamp', sort: 'desc' }],
             },
           }}
-          sx={dataGridStyles(colors)}
+          sx={{
+            ...dataGridStyles(colors),
+            border: "none",
+            paddingTop: "5px",
+          }}
         />
       </Box>
 
@@ -300,6 +304,9 @@ const dataGridStyles = (colors) => ({
       fontSize: "14px",
     },
   },
+  "& .MuiDataGrid-cell:focus": {
+    outline: "  ",
+  },
   "& .MuiDataGrid-row": {
     "&:hover": {
       backgroundColor: colors.grey[800],
@@ -308,7 +315,37 @@ const dataGridStyles = (colors) => ({
   "& .MuiTablePagination-root": {
     color: colors.grey[900],
     fontSize: "15px",
-  }
+    display: "flex",
+    alignItems: "center",
+    "& .MuiTablePagination-selectLabel": {
+      fontSize: "15px",
+      marginBottom: 0,
+      marginTop: 0,
+    },
+    "& .MuiTablePagination-displayedRows": {
+      fontSize: "15px",
+      marginBottom: 0,
+      marginTop: 0,
+    },
+    "& .MuiSelect-select": {
+      fontSize: "15px",
+      paddingTop: 0,
+      paddingBottom: 0,
+    },
+    "& .MuiTablePagination-select": {
+      marginRight: "8px",
+      marginLeft: "8px",
+    },
+    "& .MuiTablePagination-toolbar": {
+      minHeight: "auto",
+      height: "48px",
+      display: "flex",
+      alignItems: "center",
+    },
+  },
+  "& .MuiIconButton-root": {
+    color: colors.grey[400],
+  },
 });
 
 export default UserLogs;

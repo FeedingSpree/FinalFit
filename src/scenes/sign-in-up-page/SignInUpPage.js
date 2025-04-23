@@ -65,7 +65,7 @@ function SignInUpPage() {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
-        setError("Invalid password");
+        setError("Invalid username or password");
       } else {
         // Log successful login
         await createUserLog({

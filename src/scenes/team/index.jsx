@@ -407,12 +407,12 @@ const Team = () => {
           >
             Add New User
           </Button>
-        </Box>
+        </Box>  
       </Box>
 
       <Box
         m="0px 0 0 0"
-        height="85vh"
+        height="87vh"
         sx={{
           "& .MuiDataGrid-root": {
             border: "none",

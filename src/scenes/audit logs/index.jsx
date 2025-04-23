@@ -106,7 +106,11 @@ const AuditLogs = () => {
       field: "violation", 
       headerName: "Violation", 
       flex: 1, 
-      cellClassName: "violation-column--cell" 
+      cellClassName: "violation-column--cell", 
+      valueFormatter: ({ value }) => {
+        // Capitalize first letter of the violation value
+        return value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
+      }
     },
     { 
       field: "building_number", 
@@ -152,8 +156,8 @@ const AuditLogs = () => {
 
   return (
     <Box m="20px">
-      <Header title="Detection Logs" subtitle="Logging and Monitoring of Detections" />
-      <Box m="0px 0 0 0" height="85vh">
+      <Header title="Detection Logs"/>
+      <Box m="0px 0 0 0" height="88vh">
         <DataGrid
           checkboxSelection
           rows={logs}
@@ -172,7 +176,11 @@ const AuditLogs = () => {
               sortModel: [{ field: 'date', sort: 'desc' }],
             },
           }}
-          sx={dataGridStyles(colors)}
+          sx={{
+            ...dataGridStyles(colors),
+            border: "none",
+            paddingTop: "5px",
+          }}
         />
       </Box>
 

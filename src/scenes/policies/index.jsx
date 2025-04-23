@@ -207,14 +207,26 @@ const AuditLogs = () => {
 
   return (
     <Box m="20px">
-      <Header title="Policies" subtitle="Dress Code Policy Management" />
-      <Box height="85vh">
+      <Header title="Policies" subtitle="Dress Code Policy Management"/>
+      <Box 
+        height="85vh"
+        sx={{
+          "& .MuiDataGrid-root": {
+            border: "none",
+            marginTop: "20px",
+          },
+        }}
+      >
         <DataGrid
           checkboxSelection
           rows={managements}
           columns={managementColumns}
           onSelectionModelChange={(ids) => setSelectedRows(ids)}
-          sx={dataGridStyles(colors)}
+          sx={{
+            ...dataGridStyles(colors),
+            border: "none",
+            paddingTop: "40px",
+          }}
         />
       </Box>
 
