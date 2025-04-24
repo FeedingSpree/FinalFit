@@ -11,6 +11,7 @@ import {
   Select,
   MenuItem,
   DialogActions,
+  IconButton,
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { 
@@ -22,6 +23,7 @@ import {
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
 import AddIcon from '@mui/icons-material/Add';
+import { getStudentRecords, addStudentRecord, updateStudentRecord, deleteStudentRecord } from '../../services/studentRecordsService.ts';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
@@ -49,41 +51,66 @@ const ViolationHandling = () => {
     department: ''
   });
 
+  const [filterModel, setFilterModel] = useState({
+    items: [],
+    quickFilterValues: [],
+  });
+
+  const [sortModel, setSortModel] = useState([
+    {
+      field: 'name',
+      sort: 'asc',
+    },
+  ]);
+
+  const [isLoading, setIsLoading] = useState(false);
+
   const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
   const departments = [
-    "CCIS (College of Computer and Information Sciences)",
-    "CBA (College of Business Administration)",
-    "CEAS (College of Engineering and Architecture Studies)",
-    "CHTM (College of Health and Technology Management)",
-    "CITHM (College of International Tourism and Hospitality Management)"
+    "CBE",
+    "CCS",
+    "CEA",
+    "CoA",
+    "CoE"
   ];
   
   const programs = {
-    "CCIS (College of Computer and Information Sciences)": [
-      "BSIT (Bachelor of Science in Information Technology)",
-      "BSCS (Bachelor of Science in Computer Science)",
-      "BSIS (Bachelor of Science in Information Systems)"
+    "CBE": [
+      "Accountancy",
+      "Accounting Information Sytems",
+      "Financial Management",
+      "Human Resource Management",
+      "Logistics and Supply Management",
+      "Marketing Management"
     ],
-    "CBA (College of Business Administration)": [
-      "BSA (Bachelor of Science in Accountancy)",
-      "BSBA (Bachelor of Science in Business Administration)"
+    "CCS": [
+      "Computer Science",
+      "Data Science and Analytics",
+      "Information Systems",
+      "Information Technology"
     ],
-    "CEAS (College of Engineering and Architecture Studies)": [
-      "BSCpE (Bachelor of Science in Computer Engineering)",
-      "BSECE (Bachelor of Science in Electronics and Communications Engineering)",
-      "BSEE (Bachelor of Science in Electrical Engineering)"
+    "CEA": [
+      "Architecture",
+      "Civil Engineering",
+      "Computer Engineering",
+      "Electrical Engineering",
+      "Electronics Engineering",
+      "Environmental and Sanitary Engineering",
+      "Industrial Engineering",
+      "Mechanical Engineering"
     ],
-    "CHTM (College of Health and Technology Management)": [
-      "BSN (Bachelor of Science in Nursing)",
-      "BSRT (Bachelor of Science in Radiologic Technology)",
-      "BSMT (Bachelor of Science in Medical Technology)"
+    "CoA": [
+      "BA English",
+      "BA Political Science"
     ],
-    "CITHM (College of International Tourism and Hospitality Management)": [
-      "BSHM (Bachelor of Science in Hospitality Management)",
-      "BSTM (Bachelor of Science in Tourism Management)",
-      "BSCA (Bachelor of Science in Culinary Arts)"
+    "CoE": [
+      "BSE Major in English",
+      "BSE Major in Mathematics",
+      "BSE Major in Sciences",
+      "Bachelor of Special Needs Education"
     ]
   };
+
   const violations = ["Cap", "Shorts", "Sleeveless"];
 
   const validateName = (name) => {
@@ -112,47 +139,63 @@ const ViolationHandling = () => {
     }
   };
 
+  const handleSortModelChange = (newSortModel) => {
+    setSortModel(newSortModel);
+  };
+
   const columns = [
-    { field: 'id', headerName: 'ID', flex: 0.5 },
-    { 
-      field: 'name', 
-      headerName: 'Student Name', 
+    {
+      field: "name",
+      headerName: "Student Name",
       flex: 1,
-      cellClassName: "name-column--cell"
+      cellClassName: "name-column--cell",
+      sortable: true,
     },
-    { 
-      field: 'program', 
-      headerName: 'Program', 
-      flex: 0.8 
-    },
-    { 
-      field: 'yearLevel', 
-      headerName: 'Year Level', 
-      flex: 0.7 
-    },
-    { 
-      field: 'violation', 
-      headerName: 'Violation', 
-      flex: 1 
-    },
-    { 
-      field: 'date', 
-      headerName: 'Date', 
+    {
+      field: "program",
+      headerName: "Program",
       flex: 1,
+      sortable: true,
+    },
+    {
+      field: "yearLevel",
+      headerName: "Year Level",
+      flex: 0.7,
+      sortable: true,
+    },
+    {
+      field: "violation",
+      headerName: "Violation",
+      flex: 1,
+      sortable: true,
+    },
+    {
+      field: "date",
+      headerName: "Date",
+      flex: 1,
+      sortable: true,
       valueFormatter: ({ value }) => {
         if (!value) return '';
-        const [year, month, day] = value.split('-');
+        const [month, day, year] = value.split('-');
         const months = [
           'January', 'February', 'March', 'April', 'May', 'June',
           'July', 'August', 'September', 'October', 'November', 'December'
         ];
         return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
-      }
+      },
     },
-    { 
-      field: 'department', 
-      headerName: 'Department', 
-      flex: 0.8 
+    {
+      field: "department",
+      headerName: "Department",
+      flex: 1,
+      sortable: true,
+      renderCell: ({ row: { department } }) => {
+        return (
+          <Typography sx={{ fontSize: "15px" }}>
+            {department}
+          </Typography>
+        );
+      },
     },
   ];
 
@@ -182,7 +225,7 @@ const ViolationHandling = () => {
     setSelectedRecord(null);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Reset all errors
     const newErrors = {
       name: '',
@@ -216,19 +259,42 @@ const ViolationHandling = () => {
 
     // If no errors, proceed with submission
     try {
+      // Get the date parts from the YYYY-MM-DD format
+      const [year, month, day] = formData.date.split('-');
+      
+      const formattedData = {
+        ...formData,
+        yearLevel: formData.yearLevel.toString(), // Store year level as string
+        date: `${month}-${day}-${year}` // Format as MM-DD-YYYY
+      };
+
       if (selectedRecord) {
-        // Update existing record
-        setRecords(records.map(record => 
-          record.id === selectedRecord.id ? { ...formData, id: record.id } : record
-        ));
+        await updateStudentRecord(selectedRecord.id, formattedData);
       } else {
-        // Add new record
-        setRecords([...records, { ...formData, id: Date.now() }]);
+        await addStudentRecord(formattedData);
       }
+      
+      const updatedRecords = await getStudentRecords();
+      setRecords(updatedRecords);
       handleClose();
     } catch (error) {
       console.error("Error saving record:", error);
       alert("Error saving record. Please try again.");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      setIsLoading(true);
+      await deleteStudentRecord(id);
+      const updatedRecords = await getStudentRecords();
+      setRecords(updatedRecords);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      alert("Error deleting record. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -245,6 +311,22 @@ const ViolationHandling = () => {
       program: ''
     }));
   };
+
+  useEffect(() => {
+    const fetchRecords = async () => {
+      try {
+        setIsLoading(true);
+        const fetchedRecords = await getStudentRecords();
+        setRecords(fetchedRecords);
+      } catch (error) {
+        console.error("Error fetching records:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecords();
+  }, []);
 
   const CustomToolbar = () => {
     return (
@@ -370,8 +452,99 @@ const ViolationHandling = () => {
           components={{
             Toolbar: CustomToolbar
           }}
+          loading={isLoading}
           checkboxSelection
           disableRowSelectionOnClick
+          sortModel={sortModel}
+          onSortModelChange={handleSortModelChange}
+          filterModel={filterModel}
+          onFilterModelChange={(newModel) => setFilterModel(newModel)}
+          initialState={{
+            sorting: {
+              sortModel: [{ field: 'name', sort: 'asc' }],
+            },
+          }}
+          sx={{
+            "& .MuiDataGrid-root": {
+              border: "none",
+              fontSize: "16px",
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "none",
+              color: colors.grey[100],
+              fontSize: "15px",
+            },
+            "& .name-column--cell": {
+              color: colors.grey[100],
+            },
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: colors.grey[400],
+              borderBottom: "none",
+              color: colors.grey[900],
+              fontSize: "16px",
+              fontWeight: "bold",
+            },
+            "& .MuiDataGrid-virtualScroller": {
+              backgroundColor: colors.grey[900],
+            },
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "none",
+              backgroundColor: colors.grey[400],
+              color: colors.grey[900],
+            },
+            "& .MuiCheckbox-root": {
+              color: `${colors.grey[700]} !important`,
+            },
+            "& .MuiDataGrid-toolbarContainer": {
+              padding: 2,
+              "& .MuiButton-root": {
+                color: colors.grey[100],
+                fontSize: "14px",
+              },
+            },
+            "& .MuiDataGrid-cell:focus": {
+              outline: "none",
+            },
+            "& .MuiDataGrid-row": {
+              "&:hover": {
+                backgroundColor: colors.grey[800],
+              },
+            },
+            "& .MuiTablePagination-root": {
+              color: colors.grey[900],
+              fontSize: "15px",
+              display: "flex",
+              alignItems: "center",
+              "& .MuiTablePagination-selectLabel": {
+                fontSize: "15px",
+                marginBottom: 0,
+                marginTop: 0,
+              },
+              "& .MuiTablePagination-displayedRows": {
+                fontSize: "15px",
+                marginBottom: 0,
+                marginTop: 0,
+              },
+              "& .MuiSelect-select": {
+                fontSize: "15px",
+                paddingTop: 0,
+                paddingBottom: 0,
+              },
+              "& .MuiTablePagination-select": {
+                marginRight: "8px",
+                marginLeft: "8px",
+              },
+              "& .MuiTablePagination-toolbar": {
+                minHeight: "auto",
+                height: "48px",
+                display: "flex",
+                alignItems: "center",
+              },
+            },
+            "& .MuiIconButton-root": {
+              color: colors.grey[400],
+            },
+          }}
         />
       </Box>
 
