@@ -460,11 +460,37 @@ const AuditLogs = () => {
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{
+          marginTop: "60px",
+          '& .MuiAlert-root': {
+            width: "400px", // Increased width
+            minHeight: "60px", // Added minimum height
+          },
+          '& .MuiAlert-message': {
+            fontSize: "16px", // Increased font size
+            display: "flex",
+            alignItems: "center"
+          },
+          '& .MuiAlert-icon': {
+            fontSize: "24px" // Increased icon size
+          },
+          '& .MuiAlert-action': {
+            paddingTop: "6px"
+          }
+        }}
       >
         <Alert
           onClose={handleCloseSnackbar}
           severity="success"
-          sx={{ width: "100%" }}
+          sx={{
+            width: "100%",
+            '& .MuiAlert-action': {
+              '& .MuiSvgIcon-root': {
+                fontSize: "24px" // Increased close icon size
+              }
+            }
+          }}
         >
           Changes saved successfully!
         </Alert>

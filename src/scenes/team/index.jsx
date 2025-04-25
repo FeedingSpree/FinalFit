@@ -1,4 +1,4 @@
-import { Box, Button, Typography, useTheme, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, OutlinedInput, Select } from "@mui/material";
+import { Box, Button, Typography, useTheme, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, OutlinedInput, Select, Snackbar, Alert } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { tokens } from "../../theme";
 import AddIcon from '@mui/icons-material/Add';
@@ -49,6 +49,11 @@ const Team = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [confirmText, setConfirmText] = useState('');
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [deleteSnackbarOpen, setDeleteSnackbarOpen] = useState(false); // Add this state
+  const [addSnackbarOpen, setAddSnackbarOpen] = useState(false); // Add this state
+  const [updateSnackbarOpen, setUpdateSnackbarOpen] = useState(false); // Add this state
 
   const generatePassword = () => {
     const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -148,6 +153,7 @@ const Team = () => {
         const updatedUsers = await getUsers();
         setUsers(updatedUsers);
         handleDeleteCancel();
+        setDeleteSnackbarOpen(true); // Show success Snackbar
       } catch (error) {
         console.error("Error deleting user:", error);
         alert("Error deleting user. Please try again.");
@@ -265,9 +271,8 @@ const Team = () => {
         // Update existing user
         await updateUser(selectedUser.id, {
           ...formData,
-          password: selectedUser.password // Keep existing password
+          password: selectedUser.password
         });
-        // Log the edit action
         await addUserLog({
           log_id: sessionUser.log_id,
           username: sessionUser.username,
@@ -275,6 +280,7 @@ const Team = () => {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
+        setUpdateSnackbarOpen(true); // Show update Snackbar
       } else {
         // Add new user
         const userId = generateUserId();
@@ -284,7 +290,6 @@ const Team = () => {
           password: generatedPassword
         };
         await addUser(userData);
-        // Log the add action
         await addUserLog({
           log_id: sessionUser.log_id,
           username: sessionUser.username,
@@ -292,14 +297,12 @@ const Team = () => {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
+        setAddSnackbarOpen(true); // Show add Snackbar
       }
       
-      // Refresh users list
       const updatedUsers = await getUsers();
       setUsers(updatedUsers);
-      
       handleCloseDialog();
-      console.log(selectedUser ? "User updated successfully!" : "User added successfully!");
     } catch (error) {
       console.error(selectedUser ? "Error updating user:" : "Error adding user:", error);
       alert(selectedUser ? "Error updating user. Please try again." : "Error adding user. Please try again.");
@@ -384,6 +387,34 @@ const Team = () => {
       },
     },
   ];
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
+
+  const handleCloseDeleteSnackbar = (event, reason) => { // Add this handler
+    if (reason === 'clickaway') {
+      return;
+    }
+    setDeleteSnackbarOpen(false);
+  };
+
+  const handleCloseAddSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setAddSnackbarOpen(false);
+  };
+
+  const handleCloseUpdateSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setUpdateSnackbarOpen(false);
+  };
 
   return (
     <Box m="20px">
@@ -541,210 +572,241 @@ const Team = () => {
               padding: '10px',
               '& .form-row': {
                 display: 'flex',
+                flexDirection: 'column', // Changed to column
+                gap: 1, // Reduced gap for error message
+              },
+              '& .form-field': { // New wrapper for label and input
+                display: 'flex',
                 alignItems: 'center',
                 gap: 2,
               },
               '& .form-label': {
                 minWidth: '100px',
-                textAlign: 'left', // Changed from 'right' to 'left'
+                textAlign: 'left',
               },
               '& .form-input': {
                 flex: 1,
+                minWidth: '250px',
               },
+              '& .error-message': { // New class for error message
+                marginLeft: 'calc(100px + 16px)', // Align with input (label width + gap)
+              }
             }}
             noValidate
             autoComplete="off"
           >
             <div className="form-row">
-              <Typography
-                className="form-label"
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold'
-                }}
-              >
-                First Name *
-              </Typography>
-              <OutlinedInput
-                className="form-input"
-                value={formData.first_name}
-                onChange={(e) => handleInputChange('first_name', e.target.value)}
-                placeholder="Enter first name"
-                error={!!formErrors.first_name}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.first_name ? '#f44336' : colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.first_name ? '#f44336' : colors.grey[100],
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.first_name ? '#f44336' : colors.grey[100],
-                  },
-                  '&::placeholder': {
-                    color: colors.grey[500],
-                    opacity: 1,
-                  },
-                }}
-              />
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
+                    color: colors.grey[100],
+                    fontWeight: 'bold'
+                  }}
+                >
+                  First Name *
+                </Typography>
+                <OutlinedInput
+                  className="form-input"
+                  value={formData.first_name}
+                  onChange={(e) => handleInputChange('first_name', e.target.value)}
+                  placeholder="Enter first name"
+                  error={!!formErrors.first_name}
+                  sx={{
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.first_name ? '#f44336' : colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.first_name ? '#f44336' : colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.first_name ? '#f44336' : colors.grey[100],
+                    },
+                    '&::placeholder': {
+                      color: colors.grey[500],
+                      opacity: 1,
+                    },
+                  }}
+                />
+              </div>
               {formErrors.first_name && (
-                <Typography color="error" variant="caption">
+                <Typography 
+                  className="error-message"
+                  color="error" 
+                  variant="caption"
+                >
                   {formErrors.first_name}
                 </Typography>
               )}
             </div>
 
             <div className="form-row">
-              <Typography
-                className="form-label"
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold'
-                }}
-              >
-                Last Name *
-              </Typography>
-              <OutlinedInput
-                className="form-input"
-                value={formData.last_name}
-                onChange={(e) => handleInputChange('last_name', e.target.value)}
-                placeholder="Enter last name"
-                error={!!formErrors.last_name}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.last_name ? '#f44336' : colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.last_name ? '#f44336' : colors.grey[100],
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.last_name ? '#f44336' : colors.grey[100],
-                  },
-                  '&::placeholder': {
-                    color: colors.grey[500],
-                    opacity: 1,
-                  },
-                }}
-              />
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
+                    color: colors.grey[100],
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Last Name *
+                </Typography>
+                <OutlinedInput
+                  className="form-input"
+                  value={formData.last_name}
+                  onChange={(e) => handleInputChange('last_name', e.target.value)}
+                  placeholder="Enter last name"
+                  error={!!formErrors.last_name}
+                  sx={{
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.last_name ? '#f44336' : colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.last_name ? '#f44336' : colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.last_name ? '#f44336' : colors.grey[100],
+                    },
+                    '&::placeholder': {
+                      color: colors.grey[500],
+                      opacity: 1,
+                    },
+                  }}
+                />
+              </div>
               {formErrors.last_name && (
-                <Typography color="error" variant="caption">
+                <Typography 
+                  className="error-message"
+                  color="error" 
+                  variant="caption"
+                >
                   {formErrors.last_name}
                 </Typography>
               )}
             </div>
 
             <div className="form-row">
-              <Typography
-                className="form-label"
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold'
-                }}
-              >
-                Username *
-              </Typography>
-              <OutlinedInput
-                className="form-input"
-                value={formData.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                placeholder="Enter username"
-                error={!!formErrors.username}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.username ? '#f44336' : colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.username ? '#f44336' : colors.grey[100],
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.username ? '#f44336' : colors.grey[100],
-                  },
-                  '&::placeholder': {
-                    color: colors.grey[500],
-                    opacity: 1,
-                  },
-                }}
-              />
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
+                    color: colors.grey[100],
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Username *
+                </Typography>
+                <OutlinedInput
+                  className="form-input"
+                  value={formData.username}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
+                  placeholder="Enter username"
+                  error={!!formErrors.username}
+                  sx={{
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.username ? '#f44336' : colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.username ? '#f44336' : colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.username ? '#f44336' : colors.grey[100],
+                    },
+                    '&::placeholder': {
+                      color: colors.grey[500],
+                      opacity: 1,
+                    },
+                  }}
+                />
+              </div>
               {formErrors.username && (
-                <Typography color="error" variant="caption">
+                <Typography 
+                  className="error-message"
+                  color="error" 
+                  variant="caption"
+                >
                   {formErrors.username}
                 </Typography>
               )}
             </div>
 
             <div className="form-row">
-              <Typography
-                className="form-label"
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold'
-                }}
-              >
-                Password
-              </Typography>
-              <OutlinedInput
-                className="form-input"
-                value={selectedUser ? "********" : generatedPassword}
-                disabled
-                sx={{
-                  color: colors.grey[100],
-                  backgroundColor: colors.grey[800],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&.Mui-disabled': {
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
                     color: colors.grey[100],
-                    '-webkit-text-fill-color': colors.grey[100],
-                  },
-                  '& .MuiOutlinedInput-input.Mui-disabled': {
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Password
+                </Typography>
+                <OutlinedInput
+                  className="form-input"
+                  value={selectedUser ? "********" : generatedPassword}
+                  disabled
+                  sx={{
                     color: colors.grey[100],
-                    '-webkit-text-fill-color': colors.grey[100],
-                  },
-                }}
-              />
+                    backgroundColor: colors.grey[800],
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&.Mui-disabled': {
+                      color: colors.grey[100],
+                      '-webkit-text-fill-color': colors.grey[100],
+                    },
+                    '& .MuiOutlinedInput-input.Mui-disabled': {
+                      color: colors.grey[100],
+                      '-webkit-text-fill-color': colors.grey[100],
+                    },
+                  }}
+                />
+              </div>
             </div>
 
             <div className="form-row">
-              <Typography
-                className="form-label"
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold'
-                }}
-              >
-                Access Level *
-              </Typography>
-              <Select
-                className="form-input"
-                value={formData.loa}
-                onChange={(e) => handleInputChange('loa', e.target.value)}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.grey[100],
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.grey[100],
-                  },
-                  '& .MuiSelect-icon': {
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
                     color: colors.grey[100],
-                  },
-                }}
-              >
-                <MenuItem value="OSA">OSA</MenuItem>
-                <MenuItem value="SOHAS">SOHAS</MenuItem>
-              </Select>
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Access Level *
+                </Typography>
+                <Select
+                  className="form-input"
+                  value={formData.loa}
+                  onChange={(e) => handleInputChange('loa', e.target.value)}
+                  sx={{
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[100],
+                    },
+                    '& .MuiSelect-icon': {
+                      color: colors.grey[100],
+                    },
+                  }}
+                >
+                  <MenuItem value="OSA">OSA</MenuItem>
+                  <MenuItem value="SOHAS">SOHAS</MenuItem>
+                </Select>
+              </div>
             </div>
           </Box>
         </DialogContent>
@@ -826,6 +888,170 @@ const Team = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}  
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{
+          marginTop: "65px",
+          '& .MuiAlert-root': {
+            width: "400px",
+            minHeight: "60px",
+          },
+          '& .MuiAlert-message': {
+            fontSize: "16px",
+            display: "flex",
+            alignItems: "center"
+          },
+          '& .MuiAlert-icon': {
+            fontSize: "24px"
+          },
+          '& .MuiAlert-action': {
+            paddingTop: "6px"
+          }
+        }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity="success"
+          sx={{
+            width: "100%",
+            '& .MuiAlert-action': {
+              '& .MuiSvgIcon-root': {
+                fontSize: "24px"
+              }
+            }
+          }}
+        >
+          {selectedUser ? 'User updated successfully!' : 'User added successfully!'}
+        </Alert>
+      </Snackbar>
+
+      {/* Add User Success Snackbar */}
+      <Snackbar
+        open={addSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseAddSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{
+          marginTop: "65px",
+          '& .MuiAlert-root': {
+            width: "400px",
+            minHeight: "60px",
+          },
+          '& .MuiAlert-message': {
+            fontSize: "16px",
+            display: "flex",
+            alignItems: "center"
+          },
+          '& .MuiAlert-icon': {
+            fontSize: "24px"
+          },
+          '& .MuiAlert-action': {
+            paddingTop: "6px"
+          }
+        }}
+      >
+        <Alert
+          onClose={handleCloseAddSnackbar}
+          severity="success"
+          sx={{
+            width: "100%",
+            '& .MuiAlert-action': {
+              '& .MuiSvgIcon-root': {
+                fontSize: "24px"
+              }
+            }
+          }}
+        >
+          User added successfully!
+        </Alert>
+      </Snackbar>
+
+      {/* Update User Success Snackbar */}
+      <Snackbar
+        open={updateSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseUpdateSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{
+          marginTop: "65px",
+          '& .MuiAlert-root': {
+            width: "400px",
+            minHeight: "60px",
+          },
+          '& .MuiAlert-message': {
+            fontSize: "16px",
+            display: "flex",
+            alignItems: "center"
+          },
+          '& .MuiAlert-icon': {
+            fontSize: "24px"
+          },
+          '& .MuiAlert-action': {
+            paddingTop: "6px"
+          }
+        }}
+      >
+        <Alert
+          onClose={handleCloseUpdateSnackbar}
+          severity="success"
+          sx={{
+            width: "100%",
+            '& .MuiAlert-action': {
+              '& .MuiSvgIcon-root': {
+                fontSize: "24px"
+              }
+            }
+          }}
+        >
+          User updated successfully!
+        </Alert>
+      </Snackbar>
+
+      {/* Delete User Success Snackbar */}
+      <Snackbar
+        open={deleteSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseDeleteSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{
+          marginTop: "65px",
+          '& .MuiAlert-root': {
+            width: "400px",
+            minHeight: "60px",
+          },
+          '& .MuiAlert-message': {
+            fontSize: "16px",
+            display: "flex",
+            alignItems: "center"
+          },
+          '& .MuiAlert-icon': {
+            fontSize: "24px"
+          },
+          '& .MuiAlert-action': {
+            paddingTop: "6px"
+          }
+        }}
+      >
+        <Alert
+          onClose={handleCloseDeleteSnackbar}
+          severity="success"
+          sx={{
+            width: "100%",
+            '& .MuiAlert-action': {
+              '& .MuiSvgIcon-root': {
+                fontSize: "24px"
+              }
+            }
+          }}
+        >
+          User deleted successfully!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

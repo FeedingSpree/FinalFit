@@ -8,8 +8,8 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 #replace "violationlogs" with the collection name you want to delete documents from
-def delete_all_documents(violationlogs):
-    collection_ref = db.collection(violationlogs)
+def delete_all_documents(nonviolationlogs):
+    collection_ref = db.collection(nonviolationlogs)
     docs = collection_ref.stream()
 
     deleted = 0
@@ -18,7 +18,7 @@ def delete_all_documents(violationlogs):
         deleted += 1
         print(f"Deleted doc: {doc.id}")
 
-    print(f"Deleted {deleted} documents from '{violationlogs}' collection.")
+    print(f"Deleted {deleted} documents from '{nonviolationlogs}' collection.")
 
 # Example usage:
-delete_all_documents("violationlogs")  # Replace with your collection name
+delete_all_documents("nonviolationlogs")  # Replace with your collection name

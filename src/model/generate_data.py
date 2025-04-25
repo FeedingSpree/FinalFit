@@ -23,8 +23,10 @@ def generate_violation_data(num_entries=200):
 
     for _ in range(num_entries):
         # Random month and day (safe range)
-        random_month = random.randint(1, 12)
-        random_day = random.randint(1, 28)
+        #random_month = random.randint(1, 12)
+        random_month = random.randint(4, 5)
+        #random_day = random.randint(1, 28)
+        random_day = random.randint(24, 30)
         date_obj = datetime(current_year, random_month, random_day)
 
         # Random time between 6:00 AM and 8:00 PM
