@@ -25,12 +25,49 @@ import {
   deleteViolationLog
 } from "../../services/violationLogsService.ts";
 
-const CustomToolbar = () => {
+const CustomToolbar = ({ searchText, onSearchChange }) => {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  
   return (
-    <GridToolbarContainer>
-      <GridToolbarFilterButton />
-      <GridToolbarDensitySelector />
-      <GridToolbarExport />
+    <GridToolbarContainer sx={{ padding: "8px" }}>
+      <Box
+        sx={{
+          p: 0.5,
+          pb: 0,
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
+        <TextField
+          variant="outlined"
+          size="small"
+          placeholder="Search..."
+          value={searchText}
+          onChange={(e) => onSearchChange(e.target.value)}
+          sx={{
+            width: "300px",
+            marginRight: "16px",
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: colors.primary[400],
+              color: colors.grey[100],
+              "& fieldset": {
+                borderColor: colors.grey[400],
+              },
+              "&:hover fieldset": {
+                borderColor: colors.grey[300],
+              },
+            },
+            "& .MuiOutlinedInput-input": {
+              color: colors.grey[100],
+            },
+          }}
+        />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
     </GridToolbarContainer>
   );
 };
@@ -52,6 +89,7 @@ const AuditLogs = () => {
       sort: 'desc',
     },
   ]);
+  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     fetchLogs();
@@ -94,6 +132,14 @@ const AuditLogs = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCurrentLog({ ...currentLog, [name]: value });
+  };
+
+  const handleSearch = (searchValue) => {
+    setSearchText(searchValue);
+    setFilterModel({
+      ...filterModel,
+      quickFilterValues: searchValue ? [searchValue] : [],
+    });
   };
 
   const columns = [
@@ -164,6 +210,12 @@ const AuditLogs = () => {
           columns={columns}
           components={{
             Toolbar: CustomToolbar
+          }}
+          componentsProps={{
+            toolbar: {
+              searchText,
+              onSearchChange: handleSearch,
+            }
           }}
           sortModel={sortModel}
           onSortModelChange={(newModel) => setSortModel(newModel)}
@@ -281,6 +333,8 @@ const dataGridStyles = (colors) => ({
   "& .MuiDataGrid-root": {
     border: "none",
     fontSize: "16px",
+    borderRadius: "16px",  // rounded corners
+    overflow: "hidden",    // rounded corners
   },
   "& .MuiDataGrid-cell": {
     borderBottom: "none",
@@ -296,6 +350,8 @@ const dataGridStyles = (colors) => ({
     color: colors.grey[900],
     fontSize: "16px",
     fontWeight: "bold",
+    borderTopLeftRadius: "16px",    // rounded corners
+    borderTopRightRadius: "16px",   // rounded corners
   },
   "& .MuiDataGrid-virtualScroller": {
     backgroundColor: colors.grey[900],
@@ -304,6 +360,8 @@ const dataGridStyles = (colors) => ({
     borderTop: "none",
     backgroundColor: colors.grey[400],
     color: colors.grey[900],
+    borderBottomLeftRadius: "16px",  // rounded corners
+    borderBottomRightRadius: "16px", // rounded corners
   },
   "& .MuiCheckbox-root": {
     color: `${colors.grey[700]} !important`,

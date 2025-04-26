@@ -6,10 +6,20 @@ from ultralytics import YOLO
 import logging
 import os
 import torch
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import string
 import json
+import firebase_admin
+from firebase_admin import credentials, firestore
+from queue import Queue
+from threading import Thread, Lock
+import time
+
+# Initialize Firebase Admin SDK (add this after the imports)
+cred = credentials.Certificate(r"C:\Users\Jose Mari\Documents\C2\Firebase Private Key\campusfit-8468c-firebase-adminsdk-fbsvc-f90c6530de.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +59,10 @@ try:
     model = YOLO(model_path)
     device = 0 if cuda_available else "cpu"
 
+    if cuda_available:
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
+
     # Initialize video capture
     logger.info("Opening video capture...")
     cap = cv2.VideoCapture(video_path)
@@ -84,81 +98,173 @@ def generate_violation_id():
     random_chars = ''.join(random.choices(string.ascii_uppercase, k=4))
     return f"VIO{date_str}{random_chars}"
 
+# Add helper function to check allowed violations
+def get_allowed_violations():
+    allowed = {}
+    try:
+        # Get all documents from managements collection
+        docs = db.collection('managements').stream()
+        current_date = datetime.now().date()
+        
+        for doc in docs:
+            data = doc.to_dict()
+            logger.info(f"Checking management document: {data}")  # Debug log
+            
+            if data.get('status') == 'Allowed':
+                dress_code = data.get('dress_code')
+                start_date = datetime.strptime(data.get('start_date'), '%m-%d-%Y').date()
+                end_date = datetime.strptime(data.get('end_date'), '%m-%d-%Y').date()
+                
+                logger.info(f"Found allowed dress code: {dress_code} from {start_date} to {end_date}")
+                
+                # Map dress code names to class IDs
+                class_mapping = {
+                    "Cap": 8,
+                    "Sleeveless": 7,
+                    "Shorts": 9
+                }
+                
+                if dress_code in class_mapping:
+                    class_id = class_mapping[dress_code]
+                    allowed[class_id] = {
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'dress_code': dress_code  # Add dress code for logging
+                    }
+                    logger.info(f"Added to allowed list: Class {class_id} ({dress_code})")
+        
+        logger.info(f"Final allowed violations: {allowed}")
+        return allowed
+    except Exception as e:
+        logger.error(f"Error getting allowed violations: {e}")
+        return {}
+
+# First, create a helper function to check if violation is allowed
+def is_violation_allowed(cls, allowed_violations):
+    if cls in VIOLATIONS and cls in allowed_violations:
+        allowed_period = allowed_violations[cls]
+        current_date = datetime.now().date()
+        return allowed_period['start_date'] <= current_date <= allowed_period['end_date']
+    return False
+
+# Add a frame buffer class
+class FrameBuffer:
+    def __init__(self, maxsize=30):
+        self.frames = Queue(maxsize=maxsize)
+        self.lock = Lock()
+        self.last_detection_time = time.time()
+        self.detection_cooldown = 1.0  # 1 second cooldown
+        self.allowed_violations = {}
+        self.last_check_time = time.time()
+        self.check_interval = 10  # 10 seconds
+
+# Modify the generate_frames function for better performance
 def generate_frames():
-    frame_count = 0
-    last_detection_time = 0
-    detection_cooldown = 30  # Minimum frames between detections
+    frame_buffer = FrameBuffer()
     
-    while True:
+    def process_frame(frame, current_time):
         try:
-            success, frame = cap.read()
-            if not success:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                continue
-
-            frame = cv2.resize(frame, (854, 480))
-            frame_count += 1
-
-            # Run detection
+            # Run detection with optimized settings
             with torch.inference_mode():
                 results = model.predict(
                     source=frame,
                     conf=0.5,
                     save=False,
                     device=device,
-                    verbose=False
+                    verbose=False,
+                    stream=True  # Enable streaming mode
                 )
+                
+                result = next(results)
+                if result.boxes:
+                    # Process on GPU to avoid CPU-GPU transfers
+                    boxes = result.boxes
+                    mask = torch.ones(len(boxes), dtype=torch.bool, device=device)
+                    
+                    for i, box in enumerate(boxes):
+                        cls = int(box.cls[0])
+                        conf = float(box.conf[0])
+                        
+                        if conf > 0.5 and is_violation_allowed(cls, frame_buffer.allowed_violations):
+                            mask[i] = False
+                            continue
+                        
+                        # Process detections without moving tensors to CPU
+                        if cls in VIOLATIONS or cls in NON_VIOLATIONS:
+                            with frame_buffer.lock:
+                                if time.time() - frame_buffer.last_detection_time >= frame_buffer.detection_cooldown:
+                                    frame_buffer.last_detection_time = time.time()
+                                    # Process detection in separate thread
+                                    Thread(target=handle_detection, args=(cls, current_time)).start()
+                    
+                    # Filter boxes in one operation on GPU
+                    if mask.any():
+                        result.boxes = result.boxes[mask]
+                    else:
+                        result.boxes.data = torch.empty((0, 6), device=device)
+                
+                return result.plot()
+        except Exception as e:
+            logger.error(f"Error processing frame: {e}")
+            return frame
 
-            # Process detections
-            if frame_count - last_detection_time >= detection_cooldown:
-                for result in results:
-                    if result.boxes:
-                        for box in result.boxes:
-                            cls = int(box.cls[0])
-                            conf = float(box.conf[0])
-                            
-                            if conf > 0.5:
-                                current_time = datetime.now()
-                                
-                                # Handle violations
-                                if cls in VIOLATIONS:
-                                    violation = VIOLATIONS[cls]
-                                    detection_data = {
-                                        "building_number": 1,
-                                        "camera_number": 1,
-                                        "date": current_time.strftime("%Y-%m-%d"),
-                                        "floor_number": 1,
-                                        "time": current_time.strftime("%H:%M:%S"),
-                                        "violation": violation,
-                                        "violation_id": generate_violation_id()
-                                    }
-                                    app.latest_detection = {
-                                        "type": "violation",
-                                        "data": detection_data
-                                    }
-                                    last_detection_time = frame_count
-                                    logger.info(f"Violation detected: {violation}")
-                                
-                                # Handle non-violations (uniform detections)
-                                elif cls in NON_VIOLATIONS:
-                                    uniform_type = NON_VIOLATIONS[cls]
-                                    detection_data = {
-                                        "building_number": 1,
-                                        "camera_number": 1,
-                                        "date": current_time.strftime("%Y-%m-%d"),
-                                        "floor_number": 1,
-                                        "time": current_time.strftime("%H:%M:%S"),
-                                        "detection": uniform_type,
-                                        "detection_id": generate_violation_id()
-                                    }
-                                    app.latest_detection = {
-                                        "type": "uniform",
-                                        "data": detection_data
-                                    }
-                                    last_detection_time = frame_count
-                                    logger.info(f"Uniform detected: {uniform_type}")
+    def handle_detection(cls, current_time):
+        try:
+            if cls in VIOLATIONS:
+                violation = VIOLATIONS[cls]
+                detection_data = {
+                    "building_number": 1,
+                    "camera_number": 1,
+                    "date": current_time.strftime("%Y-%m-%d"),
+                    "floor_number": 1,
+                    "time": current_time.strftime("%H:%M:%S"),
+                    "violation": violation,
+                    "violation_id": generate_violation_id()
+                }
+                app.latest_detection = {
+                    "type": "violation",
+                    "data": detection_data
+                }
+                logger.info(f"Violation detected: {violation}")
+            elif cls in NON_VIOLATIONS:
+                uniform_type = NON_VIOLATIONS[cls]
+                detection_data = {
+                    "building_number": 1,
+                    "camera_number": 1,
+                    "date": current_time.strftime("%Y-%m-%d"),
+                    "floor_number": 1,
+                    "time": current_time.strftime("%H:%M:%S"),
+                    "detection": uniform_type,
+                    "detection_id": generate_violation_id()
+                }
+                app.latest_detection = {
+                    "type": "uniform",
+                    "data": detection_data
+                }
+                logger.info(f"Uniform detected: {uniform_type}")
+        except Exception as e:
+            logger.error(f"Error handling detection: {e}")
 
-            annotated_frame = results[0].plot()
+    while True:
+        try:
+            current_time = datetime.now()
+            
+            # Update allowed violations in separate thread
+            if time.time() - frame_buffer.last_check_time > frame_buffer.check_interval:
+                Thread(target=lambda: setattr(frame_buffer, 'allowed_violations', get_allowed_violations())).start()
+                frame_buffer.last_check_time = time.time()
+
+            success, frame = cap.read()
+            if not success:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
+
+            frame = cv2.resize(frame, (854, 480))
+            
+            # Process frame
+            annotated_frame = process_frame(frame, current_time)
+            
+            # Encode frame
             _, buffer = cv2.imencode('.jpg', annotated_frame)
             frame_bytes = buffer.tobytes()
 
@@ -166,7 +272,7 @@ def generate_frames():
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
         except Exception as e:
-            logger.error(f"Error processing frame: {str(e)}")
+            logger.error(f"Error in frame generation: {str(e)}")
             continue
 
 @app.get("/live-feed")

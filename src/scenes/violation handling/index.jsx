@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   useTheme,
@@ -12,6 +12,7 @@ import {
   MenuItem,
   DialogActions,
   IconButton,
+  TextField
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { 
@@ -26,6 +27,54 @@ import AddIcon from '@mui/icons-material/Add';
 import { getStudentRecords, addStudentRecord, updateStudentRecord, deleteStudentRecord } from '../../services/studentRecordsService.ts';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { addUserLog } from '../../services/userLogsService.ts';
+
+const CustomToolbar = ({ value, onChange }) => {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+  
+  return (
+    <GridToolbarContainer>
+      <Box
+        sx={{
+          p: 0.5,
+          pb: 0,
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
+        <TextField
+          variant="outlined"
+          size="small"
+          placeholder="Search..."
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          sx={{
+            width: "300px",
+            marginRight: "16px",
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: colors.primary[400],
+              color: colors.grey[100],
+              "& fieldset": {
+                borderColor: colors.grey[400],
+              },
+              "&:hover fieldset": {
+                borderColor: colors.grey[300],
+              },
+            },
+            "& .MuiOutlinedInput-input": {
+              color: colors.grey[100],
+            },
+          }}
+        />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
+    </GridToolbarContainer>
+  );
+};
 
 const ViolationHandling = () => {
   const theme = useTheme();
@@ -64,6 +113,8 @@ const ViolationHandling = () => {
   ]);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [selectedRows, setSelectedRows] = useState([]);
 
   const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
   const departments = [
@@ -261,19 +312,31 @@ const ViolationHandling = () => {
     try {
       // Get the date parts from the YYYY-MM-DD format
       const [year, month, day] = formData.date.split('-');
-      
+        
       const formattedData = {
         ...formData,
-        yearLevel: formData.yearLevel.toString(), // Store year level as string
-        date: `${month}-${day}-${year}` // Format as MM-DD-YYYY
+        yearLevel: formData.yearLevel.toString(),
+        date: `${month}-${day}-${year}`
       };
+
+      // Get current user from session
+      const sessionUser = JSON.parse(sessionStorage.getItem('user'));
 
       if (selectedRecord) {
         await updateStudentRecord(selectedRecord.id, formattedData);
       } else {
         await addStudentRecord(formattedData);
+          
+        // Add audit log for new violation record using the same log_id as the logged-in user
+        await addUserLog({
+          log_id: sessionUser.log_id, // Use the same log_id from session
+          username: sessionUser?.username || 'System',
+          action: "Recorded a Violation",
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
       }
-      
+        
       const updatedRecords = await getStudentRecords();
       setRecords(updatedRecords);
       handleClose();
@@ -312,6 +375,14 @@ const ViolationHandling = () => {
     }));
   };
 
+  const handleSearch = useCallback((searchValue) => {
+    setSearchText(searchValue);
+    setFilterModel(prev => ({
+      ...prev,
+      quickFilterValues: searchValue ? [searchValue] : []
+    }));
+  }, []);
+
   useEffect(() => {
     const fetchRecords = async () => {
       try {
@@ -327,16 +398,6 @@ const ViolationHandling = () => {
 
     fetchRecords();
   }, []);
-
-  const CustomToolbar = () => {
-    return (
-      <GridToolbarContainer>
-        <GridToolbarFilterButton />
-        <GridToolbarDensitySelector />
-        <GridToolbarExport />
-      </GridToolbarContainer>
-    );
-  };
 
   return (
     <Box m="20px">
@@ -368,6 +429,8 @@ const ViolationHandling = () => {
           "& .MuiDataGrid-root": {
             border: "none",
             fontSize: "16px",
+            borderRadius: "16px",  // rounded corners
+            overflow: "hidden",    // rounded corners
           },
           "& .MuiDataGrid-cell": {
             borderBottom: "none",
@@ -383,6 +446,8 @@ const ViolationHandling = () => {
             color: colors.grey[900],
             fontSize: "16px",
             fontWeight: "bold",
+            borderTopLeftRadius: "16px",    // rounded corners
+            borderTopRightRadius: "16px",   // rounded corners
           },
           "& .MuiDataGrid-virtualScroller": {
             backgroundColor: colors.grey[900],
@@ -391,6 +456,8 @@ const ViolationHandling = () => {
             borderTop: "none",
             backgroundColor: colors.grey[400],
             color: colors.grey[900],
+            borderBottomLeftRadius: "16px",  // rounded corners
+            borderBottomRightRadius: "16px", // rounded corners
           },
           "& .MuiCheckbox-root": {
             color: `${colors.grey[700]} !important`,
@@ -447,18 +514,24 @@ const ViolationHandling = () => {
         }}
       >
         <DataGrid
+          checkboxSelection
           rows={records}
           columns={columns}
           components={{
             Toolbar: CustomToolbar
           }}
+          componentsProps={{
+            toolbar: {
+              searchText,
+              onChange: handleSearch,
+          }}} 
           loading={isLoading}
-          checkboxSelection
           disableRowSelectionOnClick
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
           filterModel={filterModel}
           onFilterModelChange={(newModel) => setFilterModel(newModel)}
+          onSelectionModelChange={(ids) => setSelectedRows(ids)}
           initialState={{
             sorting: {
               sortModel: [{ field: 'name', sort: 'asc' }],

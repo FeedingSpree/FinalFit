@@ -1,4 +1,4 @@
-import { Box, Button, Typography, useTheme, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, OutlinedInput, Select, Snackbar, Alert } from "@mui/material";
+import { Box, Button, Typography, useTheme, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, OutlinedInput, Select, Snackbar, Alert, TextField } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { tokens } from "../../theme";
 import AddIcon from '@mui/icons-material/Add';
@@ -16,6 +16,53 @@ import {
   GridToolbarDensitySelector,
   GridToolbarExport
 } from '@mui/x-data-grid';
+
+const CustomToolbar = ({ searchText, onSearchChange }) => {
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
+
+  return (
+    <GridToolbarContainer sx={{ padding: "8px" }}>
+      <Box
+        sx={{
+          p: 0.5,
+          pb: 0,
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
+        <TextField
+          variant="outlined"
+          size="small"
+          placeholder="Search..."
+          value={searchText}
+          onChange={(e) => onSearchChange(e.target.value)}
+          sx={{
+            width: "300px",
+            marginRight: "16px",
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: colors.primary[400],
+              color: colors.grey[100],
+              "& fieldset": {
+                borderColor: colors.grey[400],
+              },
+              "&:hover fieldset": {
+                borderColor: colors.grey[300],
+              },
+            },
+            "& .MuiOutlinedInput-input": {
+              color: colors.grey[100],
+            },
+          }}
+        />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
+    </GridToolbarContainer>
+  );
+};
 
 const Team = () => {
   const theme = useTheme();
@@ -87,6 +134,7 @@ const Team = () => {
   };
 
   const [generatedPassword, setGeneratedPassword] = useState("");
+  const [searchText, setSearchText] = useState("");
 
   useEffect(() => {
     // Fetch users from Firestore
@@ -309,16 +357,6 @@ const Team = () => {
     }
   };
 
-  const CustomToolbar = () => {
-    return (
-      <GridToolbarContainer>
-        <GridToolbarFilterButton />
-        <GridToolbarDensitySelector />
-        <GridToolbarExport />
-      </GridToolbarContainer>
-    );
-  };
-
   const columns = [
     { 
       field: "user_id", 
@@ -416,6 +454,14 @@ const Team = () => {
     setUpdateSnackbarOpen(false);
   };
 
+  const handleSearch = (searchValue) => {
+    setSearchText(searchValue);
+    setFilterModel({
+      ...filterModel,
+      quickFilterValues: searchValue ? [searchValue] : [],
+    });
+  };
+
   return (
     <Box m="20px">
       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -447,7 +493,9 @@ const Team = () => {
         sx={{
           "& .MuiDataGrid-root": {
             border: "none",
-            fontSize: "16px", // Increased base font size
+            fontSize: "16px",
+            borderRadius: "16px",  // Add this
+            overflow: "hidden",    // Add this
           },
           "& .MuiDataGrid-cell": {
             borderBottom: "none",
@@ -458,19 +506,23 @@ const Team = () => {
             color: colors.grey[100], // text colors for name columns
           },
           "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: colors.grey[400], // header background color
+            backgroundColor: colors.grey[400],
             borderBottom: "none",
-            color: colors.grey[900], // Light text
-            fontSize: "16px", // Increased header font size
+            color: colors.grey[900],
+            fontSize: "16px",
             fontWeight: "bold",
+            borderTopLeftRadius: "16px",    // Add this
+            borderTopRightRadius: "16px",   // Add this
           },
           "& .MuiDataGrid-virtualScroller": {
-            backgroundColor: colors.grey[900], // Lighter background for rows
+            backgroundColor: colors.grey[900],
           },
           "& .MuiDataGrid-footerContainer": {
             borderTop: "none",
-            backgroundColor: colors.grey[400], // background color for footer
-            color: colors.grey[900], // Light text
+            backgroundColor: colors.grey[400],
+            color: colors.grey[900],
+            borderBottomLeftRadius: "16px",  // Add this
+            borderBottomRightRadius: "16px", // Add this
           },
           "& .MuiCheckbox-root": {
             color: `${colors.grey[700]} !important`,
@@ -530,16 +582,22 @@ const Team = () => {
         }}
       >
         <DataGrid 
+          checkboxSelection
           rows={users} 
           columns={columns}
           components={{
             Toolbar: CustomToolbar
           }}
+          componentsProps={{
+            toolbar: {
+              searchText,
+              onSearchChange: handleSearch,
+            }
+          }}
           sortModel={sortModel}
           onSortModelChange={handleSortModelChange}
           filterModel={filterModel}
           onFilterModelChange={(newModel) => setFilterModel(newModel)}
-          checkboxSelection
           disableRowSelectionOnClick
           initialState={{
             sorting: {

@@ -214,6 +214,8 @@ const AuditLogs = () => {
           "& .MuiDataGrid-root": {
             border: "none",
             marginTop: "20px",
+            borderRadius: "16px",  // round the corners
+            overflow: "hidden",    // round the corners
           },
         }}
       >
@@ -518,6 +520,8 @@ const dataGridStyles = (colors) => ({
     color: colors.grey[900],
     fontSize: "16px",
     fontWeight: "bold",
+    borderTopLeftRadius: "16px",    // round the corners
+    borderTopRightRadius: "16px",   // round the corners
   },
   "& .MuiDataGrid-virtualScroller": {
     backgroundColor: colors.grey[900],
@@ -526,6 +530,8 @@ const dataGridStyles = (colors) => ({
     borderTop: "none",
     backgroundColor: colors.grey[400],
     color: colors.grey[900],
+    borderBottomLeftRadius: "16px",  // round the corners
+    borderBottomRightRadius: "16px", // round the corners
   },
   "& .MuiCheckbox-root": {
     color: `${colors.grey[700]} !important`,

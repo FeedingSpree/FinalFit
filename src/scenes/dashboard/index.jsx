@@ -20,42 +20,12 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import CustomDatePicker from "../../components/CustomDatePicker";
 
-// Add this after the imports
 const VIOLATION_DISPLAY_NAMES = {
   no_sleeves: "Sleeveless",
   cap: "Cap",
   shorts: "Shorts"
-};
-
-// Add these helper functions after your existing imports
-const getDateRangeText = (timeframe) => {
-  const today = new Date();
-  const formatDate = (date) => {
-    return date.toLocaleDateString(undefined, { 
-      weekday: "short",
-      month: "short",
-      day: "numeric"
-    });
-  };
-
-  switch (timeframe) {
-    case "week": {
-      const startDate = new Date();
-      startDate.setDate(today.getDate() - 6);
-      return `${formatDate(startDate)} - ${formatDate(today)}`;
-    }
-    case "month": {
-      const monthAgo = new Date();
-      monthAgo.setMonth(today.getMonth() - 1);
-      return `${formatDate(monthAgo)} - ${formatDate(today)}`;
-    }
-    case "year": {
-      return `Year ${today.getFullYear()}`;
-    }
-    default:
-      return "";
-  }
 };
 
 const calculatePercentageChange = (violations) => {
@@ -80,7 +50,6 @@ const calculatePercentageChange = (violations) => {
   };
 };
 
-// First, add this helper function after calculatePercentageChange
 const calculateUniformPercentageChange = (detections) => {
   const today = new Date();
   const yesterday = new Date(today);
@@ -106,14 +75,32 @@ const Dashboard = () => {
   const colors = tokens(theme.palette.mode);
   const [violations, setViolations] = useState([]);
   const [detections, setDetections] = useState([]);
-  // Remove these individual timeframe states
-  // const [timeframe, setTimeframe] = useState("week");
-  // const [pieTimeframe, setPieTimeframe] = useState("week");
-  // const [barTimeframe, setBarTimeframe] = useState("week");
-  // const [uniformTimeframe, setUniformTimeframe] = useState("week");
-
-  // Add single timeframe state
   const [timeframe, setTimeframe] = useState("week");
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(today.getDate() - 6); // Set to 6 days before today
+    
+    return {
+      startDate: fromDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
+  });
+
+  // Add getDateRangeText function here
+  const getDateRangeText = () => {
+    const start = new Date(dateRange.startDate);
+    const end = new Date(dateRange.endDate);
+    return `${start.toLocaleDateString(undefined, { 
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })} - ${end.toLocaleDateString(undefined, { 
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })}`;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -131,192 +118,119 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
-  const formatData = () => {
-    const grouped = {};
-    const today = new Date();
-
-    if (timeframe === "month") {
-      const grouped = {};
-      const today = new Date();
-      const monthAgo = new Date();
-      monthAgo.setMonth(today.getMonth() - 1);
-
-      // Get dates for the past month divided into weeks
-      const weeks = [];
-      let currentDate = new Date(monthAgo);
-      
-      while (currentDate <= today) {
-        const weekStart = new Date(currentDate);
-        const weekEnd = new Date(currentDate);
-        weekEnd.setDate(weekEnd.getDate() + 6);
-
-        if (weekEnd > today) {
-          weeks.push({
-            start: weekStart,
-            end: today,
-            label: `${weekStart.toLocaleDateString(undefined, { 
-              month: 'short',
-              day: 'numeric'
-            })} - ${today.toLocaleDateString(undefined, { 
-              month: 'short',
-              day: 'numeric'
-            })}`
-          });
-        } else {
-          weeks.push({
-            start: weekStart,
-            end: weekEnd,
-            label: `${weekStart.toLocaleDateString(undefined, { 
-              month: 'short',
-              day: 'numeric'
-            })} - ${weekEnd.toLocaleDateString(undefined, { 
-              month: 'short',
-              day: 'numeric'
-            })}`
-          });
-        }
-
-        currentDate.setDate(currentDate.getDate() + 7);
-      }
-
-      // Initialize grouped data
-      weeks.forEach(week => {
-        grouped[week.label] = { 
-          name: week.label, 
-          cap: 0, 
-          shorts: 0, 
-          no_sleeves: 0 
-        };
-      });
-
-      // Count violations for each week
-      violations.forEach((v) => {
-        const violationDate = new Date(`${v.date}T${v.time}`);
-        
-        const matchingWeek = weeks.find(
-          week => violationDate >= week.start && violationDate <= week.end
-        );
-
-        if (matchingWeek) {
-          const key = matchingWeek.label;
-          if (v.violation === "cap") grouped[key].cap += 1;
-          if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
-        }
-      });
-
-      return weeks.map(week => grouped[week.label]);
-    }
-
-    if (timeframe === "week") {
-      const grouped = {};
-      const today = new Date();
-    
-      // Modified to include full date format
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(today.getDate() - (6 - i));
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return {
-          fullDate: `${yyyy}-${mm}-${dd}`,
-          // Format: "Mon, Apr 17"
-          weekday: d.toLocaleDateString(undefined, { 
-            weekday: "short",
-            month: "short",
-            day: "numeric"
-          }),
-        };
-      });
-    
-      violations.forEach((v) => {
-        const violationDateStr = v.date;
-        const violationDate = new Date(`${v.date}T${v.time}`);
-        const fullDateMatch = last7Days.find(day => day.fullDate === violationDateStr);
-    
-        let key = "";
-    
-        if (timeframe === "week" && fullDateMatch) {
-          key = fullDateMatch.weekday;
-        }
-    
-        if (key) {
-          if (!grouped[key]) {
-            grouped[key] = { name: key, cap: 0, shorts: 0, no_sleeves: 0 };
-          }
-    
-          if (v.violation === "cap") grouped[key].cap += 1;
-          if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
-        }
-      });
-    
-      return last7Days.map((day) =>
-        grouped[day.weekday] || { name: day.weekday, cap: 0, shorts: 0, no_sleeves: 0 }
-      );
-    }
-  
-    if (timeframe === "year") {
-      const grouped = {};
-      const today = new Date();
-    
-      violations.forEach((v) => {
-        const violationDate = new Date(`${v.date}T${v.time}`);
-        const year = today.getFullYear();
-        if (violationDate.getFullYear() === year) {
-          const key = violationDate.toLocaleString("default", { month: "short" });
-          if (!grouped[key]) {
-            grouped[key] = { name: key, cap: 0, shorts: 0, no_sleeves: 0 };
-          }
-          if (v.violation === "cap") grouped[key].cap += 1;
-          if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
-        }
-      });
-    
-      const months = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"
-      ];
-      return months.map((month) => grouped[month] || { name: month, cap: 0, shorts: 0, no_sleeves: 0 });
-    }
-    return Object.values(grouped);
+  // Add this helper function
+  const isDateInRange = (date) => {
+    const checkDate = new Date(date);
+    const start = new Date(dateRange.startDate);
+    const end = new Date(dateRange.endDate);
+    return checkDate >= start && checkDate <= end;
   };
-  // PIE CHART
-  const calculateViolationsRatio = () => {
-    const today = new Date();
-    
-    const filteredViolations = violations.filter(v => {
-      const violationDate = new Date(`${v.date}T${v.time}`);
-      
-      if (timeframe === "week") {
-        // Create array of last 7 days including today
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(today.getDate() - (6 - i));
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          return `${yyyy}-${mm}-${dd}`;
-        });
-        
-        return last7Days.includes(v.date);
-      }
-      
-      if (timeframe === "month") {
-        const monthAgo = new Date();
-        monthAgo.setMonth(today.getMonth() - 1);
-        return violationDate >= monthAgo && violationDate <= today;
-      }
-      
-      if (timeframe === "year") {
-        return violationDate.getFullYear() === today.getFullYear();
-      }
 
-      return true;
+  // Add this helper function after your existing helper functions
+  const getDateInterval = (start, end) => {
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 7) return { unit: 'day', step: 1 }; // Show every day
+    if (diffDays <= 31) return { unit: 'day', step: 2 }; // Show every other day
+    if (diffDays <= 90) return { unit: 'week', step: 1 }; // Show weekly
+    if (diffDays <= 365) return { unit: 'month', step: 1 }; // Show monthly
+    return { unit: 'month', step: 3 }; // Show quarterly
+  };
+
+  // Update your formatData function
+  const formatData = () => {
+    const start = new Date(dateRange.startDate);
+    const end = new Date(dateRange.endDate);
+    const interval = getDateInterval(start, end);
+    
+    let dates = [];
+    if (interval.unit === 'day') {
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      dates = Array.from({ length: Math.ceil(diffDays / interval.step) + 1 }, (_, i) => {
+        const date = new Date(start);
+        date.setDate(date.getDate() + (i * interval.step));
+        return {
+          fullDate: date.toISOString().split('T')[0],
+          display: date.toLocaleDateString(undefined, { 
+            month: 'short',
+            day: 'numeric'
+          })
+        };
+      });
+    } else if (interval.unit === 'week') {
+      let current = new Date(start);
+      while (current <= end) {
+        dates.push({
+          fullDate: current.toISOString().split('T')[0],
+          display: `W${Math.ceil((current.getDate() + current.getDay()) / 7)} ${current.toLocaleDateString(undefined, { 
+            month: 'short'
+          })}`
+        });
+        current.setDate(current.getDate() + 7);
+      }
+    } else if (interval.unit === 'month') {
+      let current = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (current <= end) {
+        dates.push({
+          fullDate: current.toISOString().split('T')[0],
+          display: current.toLocaleDateString(undefined, { 
+            month: 'short',
+            year: 'numeric'
+          })
+        });
+        current.setMonth(current.getMonth() + interval.step);
+      }
+    }
+
+    const grouped = {};
+    dates.forEach(date => {
+      grouped[date.display] = {
+        name: date.display,
+        cap: 0,
+        shorts: 0,
+        no_sleeves: 0
+      };
     });
 
+    // Aggregate violations based on interval
+    violations.forEach(v => {
+      if (isDateInRange(v.date)) {
+        const vDate = new Date(v.date);
+        let key;
+        
+        if (interval.unit === 'day') {
+          key = vDate.toLocaleDateString(undefined, { 
+            month: 'short',
+            day: 'numeric'
+          });
+        } else if (interval.unit === 'week') {
+          key = `W${Math.ceil((vDate.getDate() + vDate.getDay()) / 7)} ${vDate.toLocaleDateString(undefined, { 
+            month: 'short'
+          })}`;
+        } else if (interval.unit === 'month') {
+          key = vDate.toLocaleDateString(undefined, { 
+            month: 'short',
+            year: 'numeric'
+          });
+        }
+
+        if (grouped[key]) {
+          if (v.violation === "cap") grouped[key].cap += 1;
+          if (v.violation === "shorts") grouped[key].shorts += 1;
+          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
+        }
+      }
+    });
+
+    return Object.values(grouped);
+  };
+
+  // PIE CHART
+  const calculateViolationsRatio = () => {
+    const filteredViolations = violations.filter(v => isDateInRange(v.date));
     const totals = filteredViolations.reduce((acc, violation) => {
       const type = violation.violation;
       acc[type] = (acc[type] || 0) + 1;
@@ -333,38 +247,7 @@ const Dashboard = () => {
   };
   // BAR CHART
   const calculateViolationRanking = () => {
-    const today = new Date();
-    
-    const filteredViolations = violations.filter(v => {
-      const violationDate = new Date(`${v.date}T${v.time}`);
-      
-      if (timeframe === "week") {
-        // Create array of last 7 days including today
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(today.getDate() - (6 - i));
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          return `${yyyy}-${mm}-${dd}`;
-        });
-        
-        return last7Days.includes(v.date);
-      }
-      
-      if (timeframe === "month") {
-        const monthAgo = new Date();
-        monthAgo.setMonth(today.getMonth() - 1);
-        return violationDate >= monthAgo && violationDate <= today;
-      }
-      
-      if (timeframe === "year") {
-        return violationDate.getFullYear() === today.getFullYear();
-      }
-
-      return true;
-    });
-
+    const filteredViolations = violations.filter(v => isDateInRange(v.date));
     const totals = filteredViolations.reduce((acc, violation) => {
       const type = violation.violation;
       acc[type] = (acc[type] || 0) + 1;
@@ -380,35 +263,7 @@ const Dashboard = () => {
   };
 
   const calculateUniformDetections = () => {
-    const today = new Date();
-    
-    const filteredDetections = detections.filter(d => {
-      const detectionDate = new Date(`${d.date}T${d.time}`);
-      
-      if (timeframe === "week") {
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(today.getDate() - (6 - i));
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          return `${yyyy}-${mm}-${dd}`;
-        });
-        
-        return last7Days.includes(d.date);
-      }
-      
-      if (timeframe === "month") {
-        const monthAgo = new Date();
-        monthAgo.setMonth(today.getMonth() - 1);
-        return detectionDate >= monthAgo && detectionDate <= today;
-      }
-      
-      if (timeframe === "year") {
-        return detectionDate.getFullYear() === today.getFullYear();
-      }
-    });
-
+    const filteredDetections = detections.filter(d => isDateInRange(d.date));
     // For year view, combine all detections into two categories
     if (timeframe === "year") {
       const yearTotals = {
@@ -463,20 +318,43 @@ const Dashboard = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Header title="Dashboard"/>
         <Box display="flex" alignItems="center" gap="20px">
-          <Select
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
-            sx={{
-              backgroundColor: colors.primary[900],
-              color: colors.grey[100],
-              borderRadius: "5px",
-              ".MuiOutlinedInput-notchedOutline": { border: 0 },
-            }}
-          >
-            <MenuItem value="week">Previous Week</MenuItem>
-            <MenuItem value="month">Previous Month</MenuItem>
-            <MenuItem value="year">This Year</MenuItem>
-          </Select>
+          <Box display="flex" alignItems="center" gap="20px">
+            {/* From Date Picker */}
+            <Box display="flex" alignItems="center">
+              <Typography
+                variant="body2"
+                color={colors.grey[100]}
+                sx={{ minWidth: '40px' }}
+              >
+                From:
+              </Typography>
+              <CustomDatePicker
+                value={dateRange.startDate}
+                onChange={(newDate) => setDateRange(prev => ({
+                  ...prev,
+                  startDate: newDate
+                }))}
+              />
+            </Box>
+
+            {/* To Date Picker */}
+            <Box display="flex" alignItems="center">
+              <Typography
+                variant="body2"
+                color={colors.grey[100]}
+                sx={{ minWidth: '40px' }}
+              >
+                To:
+              </Typography>
+              <CustomDatePicker
+                value={dateRange.endDate}
+                onChange={(newDate) => setDateRange(prev => ({
+                  ...prev,
+                  endDate: newDate
+                }))}
+              />
+            </Box>
+          </Box>
           <Button
             sx={{
               backgroundColor: '#ffd700',
@@ -516,9 +394,16 @@ const Dashboard = () => {
           </Box>
           <Box height="300px" mt="20px">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={formatData()} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <LineChart data={formatData()} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.8} />
-                <XAxis dataKey="name" />
+                <XAxis 
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={70}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
                 <YAxis />
                 <Tooltip 
                   formatter={(value, name) => [
@@ -550,7 +435,7 @@ const Dashboard = () => {
               </Typography>
             </Box>
             <Typography variant="subtitle2" color={colors.grey[300]}>
-              {getDateRangeText(timeframe)}
+              {getDateRangeText()}
             </Typography>
           </Box>
           <Box height="260px" mt="25px" display="flex" flexDirection="column" alignItems="center" justifyContent="center">
