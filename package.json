@@ -40,6 +40,7 @@
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "nth-check": "^2.1.1",
+    "pdfmake": "^0.2.19",
     "postcss": "^8.5.3",
     "react": "^18.2.0",
     "react-chartjs-2": "^4.3.1",
@@ -79,5 +80,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
   }
 }
