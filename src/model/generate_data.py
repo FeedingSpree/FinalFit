@@ -9,61 +9,98 @@ cred = credentials.Certificate(r"C:\Users\Jose Mari\Documents\C2\Firebase Privat
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-def generate_violation_id(date_obj):
-    date_part = date_obj.strftime("%m%d%y")  # MMDDYY format
-    random_part = ''.join(random.choices(string.ascii_uppercase, k=4))
-    #return f"VIO{date_part}{random_part}"
-    return f"NV{date_part}{random_part}"
-
-def generate_violation_data(num_entries=200):
-    #violations = ["cap", "shorts", "sleeveless"]
-    non_violations = ["Male PE Uniform", "Female PE Uniform", "Male Regular Uniform", "Female Regular Uniform"]
-    current_year = datetime.now().year
+def generate_student_data(num_entries=50):
+    # Define data pools
+    first_names = ["John", "Maria", "James", "Sarah", "Michael", "Emma", "David", "Sofia", "Daniel", "Olivia"]
+    last_names = ["Garcia", "Santos", "Cruz", "Reyes", "Torres", "Lopez", "Rivera", "Gomez", "Flores", "Martinez"]
+    
+    departments = {
+        "CBE": [
+            "Accountancy",
+            "Accounting Information Systems",
+            "Financial Management",
+            "Human Resource Management",
+            "Logistics and Supply Management",
+            "Marketing Management"
+        ],
+        "CCS": [
+            "Computer Science",
+            "Data Science and Analytics",
+            "Information Systems",
+            "Information Technology"
+        ],
+        "CEA": [
+            "Architecture",
+            "Civil Engineering",
+            "Computer Engineering",
+            "Electrical Engineering",
+            "Electronics Engineering",
+            "Environmental and Sanitary Engineering",
+            "Industrial Engineering",
+            "Mechanical Engineering"
+        ],
+        "CoA": [
+            "BA English",
+            "BA Political Science"
+        ],
+        "CoE": [
+            "BSE Major in English",
+            "BSE Major in Mathematics",
+            "BSE Major in Sciences",
+            "Bachelor of Special Needs Education"
+        ]
+    }
+    
+    year_levels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"]
+    violations = ["Cap", "Shorts", "Sleeveless"]
+    
     data = []
+    current_year = datetime.now().year
 
     for _ in range(num_entries):
-        # Random month and day (safe range)
-        #random_month = random.randint(1, 12)
+        # Generate random name
+        first_name = random.choice(first_names)
+        last_name = random.choice(last_names)
+        full_name = f"{first_name} {last_name}"
+        
+        # Select random department and program
+        department = random.choice(list(departments.keys()))
+        program = random.choice(departments[department])
+        
+        # Generate random date within April-May 2024
         random_month = random.randint(4, 5)
-        #random_day = random.randint(1, 28)
-        random_day = random.randint(24, 30)
+        random_day = random.randint(1, 28)
         date_obj = datetime(current_year, random_month, random_day)
-
-        # Random time between 6:00 AM and 8:00 PM
-        hour = random.randint(6, 20)
-        minute = random.randint(0, 59)
-        second = random.randint(0, 59)
-        date_obj = date_obj.replace(hour=hour, minute=minute, second=second)
-
-        violation_id = generate_violation_id(date_obj)
-        #violation = random.choice(violations)
-        non_violation = random.choice(non_violations)
-        building_number = random.randint(1, 6)
-        floor_number = random.randint(1, 6)
-        camera_number = random.randint(1, 6)
-
-        date_str = date_obj.strftime("%Y-%m-%d")
-        time_str = date_obj.strftime("%H:%M:%S")
-
+        date_str = date_obj.strftime("%m-%d-%Y")
+        
         entry = {
-            "detection_id": violation_id,
-            "detection": non_violation,
-            "building_number": building_number,
-            "floor_number": floor_number,
-            "camera_number": camera_number,
+            "name": full_name,
+            "program": program,
+            "yearLevel": random.choice(year_levels),
+            "violation": random.choice(violations),
             "date": date_str,
-            "time": time_str
+            "department": department
         }
         data.append(entry)
 
     return data
 
-def upload_to_firestore(data, collection_name="nonviolationlogs"):
+def upload_to_firestore(data, collection_name="studentrecords"):
+    batch = db.batch()
+    
     for entry in data:
-        doc_ref = db.collection(collection_name).document(entry["detection_id"])
-        doc_ref.set(entry)
-    print(f"{len(data)} documents uploaded to Firestore.")
+        doc_ref = db.collection(collection_name).document()
+        batch.set(doc_ref, entry)
+    
+    # Commit the batch
+    batch.commit()
+    print(f"{len(data)} student records uploaded to Firestore.")
 
-# Generate and upload
-data = generate_violation_data(200)
-upload_to_firestore(data)
+if __name__ == "__main__":
+    try:
+        # Generate and upload data
+        student_data = generate_student_data(200)  # Generate 50 records
+        upload_to_firestore(student_data)
+        print("Data generation and upload completed successfully!")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")

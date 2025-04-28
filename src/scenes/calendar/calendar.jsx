@@ -26,6 +26,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "../../services/calendarService.ts";
+import { addUserLog } from "../../services/userLogsService.ts";
 import DeleteIcon from '@mui/icons-material/Delete';
 import IconButton from '@mui/material/IconButton';
 
@@ -74,6 +75,7 @@ const Calendar = () => {
 
     try {
       const color = getRandomColor();
+      const user = JSON.parse(sessionStorage.getItem('user'));
       
       // Get the dates in yyyy-mm-dd format from the date picker
       const pickerStartDate = selectedDateInfo.startStr;
@@ -87,23 +89,23 @@ const Calendar = () => {
         throw new Error("Invalid date format");
       }
 
-      // Add one day to end date
-      const endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
-      endDate.setDate(endDate.getDate() + 1);
-      const adjustedEndParts = [
-        endDate.getFullYear(),
-        (endDate.getMonth() + 1).toString().padStart(2, '0'),
-        endDate.getDate().toString().padStart(2, '0')
-      ];
-
       const eventData = {
         event_name: newEventTitle,
         start_date: `${startParts[1]}-${startParts[2]}-${startParts[0]}`,
-        end_date: `${adjustedEndParts[1]}-${adjustedEndParts[2]}-${adjustedEndParts[0]}`,
+        end_date: `${endParts[1]}-${endParts[2]}-${endParts[0]}`,
         color
       };
 
       await addCalendarEvent(eventData);
+
+      // Add user log for event creation
+      await addUserLog({
+        log_id: user.log_id,
+        username: user.username,
+        action: `Added event`,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().split(' ')[0]
+      });
 
       // Refresh events and count
       const events = await getCalendarEvents();
@@ -126,8 +128,18 @@ const Calendar = () => {
 
   const handleDeleteConfirm = async () => {
     try {
+      const user = JSON.parse(sessionStorage.getItem('user'));
       await deleteCalendarEvent(eventToDelete.id);
       
+      // Add user log for event deletion
+      await addUserLog({
+        log_id: user.log_id,
+        username: user.username,
+        action: `Deleted calendar event: ${eventToDelete.title}`,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().split(' ')[0]
+      });
+
       // Refresh events and count
       const events = await getCalendarEvents();
       setCustomEvents(events.map(mapEventForCalendar));
@@ -155,8 +167,18 @@ const Calendar = () => {
 
   const handleBulkDeleteConfirm = async () => {
     try {
+      const user = JSON.parse(sessionStorage.getItem('user'));
       await Promise.all(selectedEvents.map(id => deleteCalendarEvent(id)));
       
+      // Add user log for bulk deletion
+      await addUserLog({
+        log_id: user.log_id,
+        username: user.username,
+        action: `Removed ${selectedEvents.length} events`,
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().split(' ')[0]
+      });
+
       // Refresh events and count
       const events = await getCalendarEvents();
       setCustomEvents(events.map(mapEventForCalendar));

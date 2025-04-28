@@ -1,4 +1,4 @@
-import { Box, Button, IconButton, MenuItem, Select, Typography, useTheme } from "@mui/material";
+import { Box, Button, IconButton, MenuItem, Select, Typography, useTheme, Tooltip as MuiTooltip } from "@mui/material";
 import { tokens } from "../../theme";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import Header from "../../components/Header";
@@ -25,6 +25,7 @@ import pdfMake from 'pdfmake/build/pdfmake';
 import vfs from 'pdfmake/build/vfs_fonts.js';
 import html2canvas from "html2canvas";
 import { getCalendarEvents } from "../../services/calendarService.ts";
+import { addUserLog } from "../../services/userLogsService.ts";
 
 pdfMake.vfs = vfs;
 const VIOLATION_DISPLAY_NAMES = {
@@ -33,28 +34,37 @@ const VIOLATION_DISPLAY_NAMES = {
   shorts: "Shorts"
 };
 
+// First, update the calculatePercentageChange function to include actual numbers
 const calculatePercentageChange = (violations) => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   
-  // Format dates to match your data format
   const todayStr = today.toISOString().split('T')[0];
   const yesterdayStr = yesterday.toISOString().split('T')[0];
   
-  // Count violations for today and yesterday
   const todayCount = violations.filter(v => v.date === todayStr).length;
   const yesterdayCount = violations.filter(v => v.date === yesterdayStr).length;
   
-  if (yesterdayCount === 0) return { percent: 0, increased: false };
+  if (yesterdayCount === 0) return { 
+    percent: 0, 
+    increased: false,
+    todayCount,
+    yesterdayCount,
+    difference: todayCount - yesterdayCount 
+  };
   
   const percentChange = ((todayCount - yesterdayCount) / yesterdayCount) * 100;
   return {
     percent: Math.abs(Math.round(percentChange)),
-    increased: percentChange > 0
+    increased: percentChange > 0,
+    todayCount,
+    yesterdayCount,
+    difference: Math.abs(todayCount - yesterdayCount)
   };
 };
 
+// Update the calculateUniformPercentageChange function similarly
 const calculateUniformPercentageChange = (detections) => {
   const today = new Date();
   const yesterday = new Date(today);
@@ -66,12 +76,21 @@ const calculateUniformPercentageChange = (detections) => {
   const todayCount = detections.filter(d => d.date === todayStr).length;
   const yesterdayCount = detections.filter(d => d.date === yesterdayStr).length;
   
-  if (yesterdayCount === 0) return { percent: 0, increased: false };
+  if (yesterdayCount === 0) return { 
+    percent: 0, 
+    increased: false,
+    todayCount,
+    yesterdayCount,
+    difference: todayCount - yesterdayCount 
+  };
   
   const percentChange = ((todayCount - yesterdayCount) / yesterdayCount) * 100;
   return {
     percent: Math.abs(Math.round(percentChange)),
-    increased: percentChange > 0
+    increased: percentChange > 0,
+    todayCount,
+    yesterdayCount,
+    difference: Math.abs(todayCount - yesterdayCount)
   };
 };
 
@@ -93,193 +112,352 @@ const Dashboard = () => {
     };
   });
   const generateReport = async () => {
-    // Capture chart images
-    const violationsChartImg = await getChartImage('.violations-chart');
-    const violationsRatioImg = await getChartImage('.violations-ratio-chart');
-    const mostCommonViolationsImg = await getChartImage('.most-common-violations-chart');
-    const uniformTypeImg = await getChartImage('.uniform-type-chart');
+    try {
+      const user = JSON.parse(sessionStorage.getItem("user"));
+      const generatedBy = [user.first_name, user.last_name].filter(Boolean).join(' ');
 
-    // Violations Chart Table: Add header row
-    const violationsChartHeader = ['Date', 'Hats/Caps', 'Shorts', 'Sleeveless'];
-    const violationsChartBody = formatData().map((row) => [
-      row.name,
-      row.cap,
-      row.shorts,
-      row.no_sleeves
-    ]);
-    const violationsChartTable = {
-      table: {
-        widths: [100, 100, 100, 100],
-        body: [
-          violationsChartHeader,
-          ...violationsChartBody
-        ]
-      }
-    };
+      // Log the report generation
+      await addUserLog({
+        log_id: user.log_id,
+        username: user.username,
+        action: "Generated Report",
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().split(' ')[0]
+      });
 
-    // Violations Ratio Table: Show percentage
-    const filteredViolations = violations.filter(v => isDateInRange(v.date));
-    const totalViolations = filteredViolations.length || 1; // avoid division by zero
-    const ratioData = calculateViolationsRatio().map((row) => [
-      row.name,
-      `${((row.value / totalViolations) * 100).toFixed(2)}%`
-    ]);
-    const violationsRatioTable = {
-      table: {
-        widths: [100, 100],
-        body: [
-          ['Type', 'Percentage'],
-          ...ratioData
-        ]
-      }
-    };
+      const violationsChartImg = await getChartImage('.violations-chart');
+      const violationsRatioImg = await getChartImage('.violations-ratio-chart');
+      const mostCommonViolationsImg = await getChartImage('.most-common-violations-chart');
+      const uniformTypeImg = await getChartImage('.uniform-type-chart');
 
-    // Most Common Violations Table (already has header)
-    const mostCommonViolationsTable = {
-      table: {
-        widths: [100, 100],
-        body: [
-          ['Type', 'Value'],
-          ...calculateViolationRanking().map((row) => [row.name, row.value])
-        ]
-      }
-    };
-
-    // Uniform Type Distribution Table: Add header row
-    const uniformTypeHeader = ['Type', 'Male', 'Female'];
-    const uniformTypeBody = calculateUniformDetections().map((row) => [
-      row.name,
-      row.male,
-      row.female
-    ]);
-    const uniformTypeTable = {
-      table: {
-        widths: [100, 100, 100],
-        body: [
-          uniformTypeHeader,
-          ...uniformTypeBody
-        ]
-      }
-    };
-
-    // PDF definition
-    const user = JSON.parse(sessionStorage.getItem("user"));
-    const generatedBy = user ? `${user.first_name} ${user.last_name}` : "Unknown";
-    const docDefinition = {
-      pageMargins: [40, 60, 40, 60],
-      footer: function(currentPage, pageCount) {
-        return {
-          text: `Page ${currentPage} of ${pageCount}`,
-          alignment: 'right',
-          margin: [0, 0, 40, 20],
-          fontSize: 9,
-          color: '#888'
-        };
-      },
-      content: [
-        // Colored header bar
-        {
-          canvas: [
-            { type: 'rect', x: 0, y: 0, w: 515, h: 35, color: '#ffd700' }
-          ],
-          absolutePosition: { x: 40, y: 30 }
+      // Fix the tables data structure
+      const violationsChartTable = {
+        table: {
+          headerRows: 1,
+          widths: ['*', '*', '*', '*'],
+          body: [
+            ['Date', 'Hats/Caps', 'Shorts', 'Sleeveless'],
+            ...formatData().map(row => [
+              row.name,
+              row.cap,
+              row.shorts,
+              row.no_sleeves
+            ])
+          ]
         },
-        {
-          text: 'Technological Institute of the Philippines - Quezon City',
-          style: 'mainHeader',
-          margin: [0, 10, 0, 0],
-          alignment: 'center',
-          color: '#222'
-        },
-        {
-          text: 'Violation and Compliance Report',
-          style: 'subHeader',
-          alignment: 'center',
-          color: '#333'
-        },
-        {
-          columns: [
-            { text: `Generated by: ${generatedBy}`, style: 'meta' },
-            { text: `Generated on: ${new Date().toLocaleString()}`, style: 'meta', alignment: 'right' }
-          ],
-          margin: [0, 10, 0, 10]
-        },
-        {
-          text: `Date Range: ${getDateRangeText()}`,
-          style: 'meta',
-          margin: [0, 0, 0, 10]
-        },
+        layout: 'tableLayout',
+        pageBreak: 'avoid',
+        margin: [0, 10, 0, 20],
+        alignment: 'center'
+      };
 
-        { canvas: [ { type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: '#ffd700' } ], margin: [0, 0, 0, 10] },
+      const violationsRatioData = calculateViolationsRatio().map(row => [
+        row.name,
+        `${((row.value / violations.length) * 100).toFixed(2)}%`
+      ]);
 
-        // Violations Chart Section
-        { text: 'Violations Chart', style: 'sectionHeader', margin: [0, 10, 0, 5] },
-        violationsChartImg ? { image: violationsChartImg, width: 450, margin: [0, 0, 0, 10] } : {},
-        { ...violationsChartTable, layout: 'zebra' },
-
-        // Violations Ratio Section
-        { text: 'Violations Ratio', style: 'sectionHeader', margin: [0, 15, 0, 5] },
-        violationsRatioImg ? { image: violationsRatioImg, width: 300, margin: [0, 0, 0, 10] } : {},
-        { ...violationsRatioTable, layout: 'zebra' },
-
-        // Most Common Violations Section
-        { text: 'Most Common Violations', style: 'sectionHeader', margin: [0, 15, 0, 5] },
-        mostCommonViolationsImg ? { image: mostCommonViolationsImg, width: 400, margin: [0, 0, 0, 10] } : {},
-        { ...mostCommonViolationsTable, layout: 'zebra' },
-
-        // Uniform Type Distribution Section
-        { text: 'Uniform Type Distribution', style: 'sectionHeader', margin: [0, 15, 0, 5] },
-        uniformTypeImg ? { image: uniformTypeImg, width: 400, margin: [0, 0, 0, 10] } : {},
-        { ...uniformTypeTable, layout: 'zebra' },
-      ],
-      styles: {
-        mainHeader: {
-          fontSize: 18,
-          bold: true,
-          margin: [0, 16, 0, 4],
-          color: '#222'
+      const violationsRatioTable = {
+        table: {
+          headerRows: 1,
+          widths: ['*', '*'],
+          body: [
+            ['Type', 'Percentage'],
+            ...violationsRatioData
+          ]
         },
-        subHeader: {
-          fontSize: 14,
-          bold: true,
-          margin: [0, 0, 0, 8],
-          color: '#333'
-        },
-        sectionHeader: {
-          fontSize: 13,
-          bold: true,
-          color: '#222',
-          margin: [0, 10, 0, 4]
-        },
-        meta: {
-          fontSize: 10,
-          color: '#555'
+        layout: 'tableLayout',
+        pageBreak: 'avoid',
+        margin: [50, 10, 50, 20],
+        alignment: 'center'
+      };
+
+      const mostCommonViolationsTable = {
+        table: {
+          widths: [100, 100],
+          body: [
+            ['Violation Type', 'Count'],
+            ...calculateViolationRanking().map(row => [
+              row.name,
+              row.value
+            ])
+          ]
         }
-      },
-      defaultStyle: {
-        fontSize: 10
-      },
-      // Zebra layout for tables
-      tableLayouts: {
-        zebra: {
-          fillColor: function (rowIndex, node, columnIndex) {
-            return rowIndex === 0
-              ? '#ffd700'
-              : rowIndex % 2 === 0
-              ? '#f5f5f5'
-              : null;
+      };
+
+      const uniformTypeTable = {
+        table: {
+          headerRows: 1,
+          widths: ['*', '*', '*'],
+          body: [
+            ['Uniform Type', 'Male', 'Female'],
+            ...calculateUniformDetections().map(row => [
+              row.name,
+              row.male,
+              row.female
+            ])
+          ]
+        },
+        layout: 'tableLayout',
+        pageBreak: 'avoid',
+        margin: [20, 10, 20, 20],
+        alignment: 'center'
+      };
+
+      // Create the PDF document definition
+      const docDefinition = {
+        pageMargins: [40, 120, 40, 60],
+        header: {
+          stack: [
+            { 
+              canvas: [
+                { type: 'rect', x: 0, y: 0, w: 595.28, h: 100, color: '#ffd700' }
+              ]
+            },
+            {
+              stack: [
+                {
+                  text: 'Technological Institute of the Philippines',
+                  fontSize: 22,
+                  bold: true,
+                  alignment: 'center',
+                  margin: [0, 15, 0, 0],
+                  color: '#222'
+                },
+                {
+                  text: 'Dress Code Violation Monitoring System',
+                  fontSize: 16,
+                  alignment: 'center',
+                  margin: [0, 5, 0, 0],
+                  color: '#222'
+                }
+              ],
+              absolutePosition: { x: 40, y: 20 }
+            }
+          ]
+        },
+        footer: function(currentPage, pageCount) {
+          return {
+            stack: [
+              { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555.28, y2: 0, lineWidth: 1, lineColor: '#ffd700' }] },
+              {
+                columns: [
+                  { 
+                    text: `Generated on: ${new Date().toLocaleString()}`,
+                    fontSize: 8,
+                    color: '#666',
+                    margin: [40, 5, 0, 0]
+                  },
+                  {
+                    text: `Page ${currentPage} of ${pageCount}`,
+                    fontSize: 8,
+                    color: '#666',
+                    alignment: 'right',
+                    margin: [0, 5, 40, 0]
+                  }
+                ]
+              }
+            ]
+          };
+        },
+        content: [
+          {
+            text: 'Analytics Report',
+            style: 'mainHeader',
+            margin: [0, 20, 0, 10]
           },
-          hLineColor: function(i, node) {
-            return i === 0 ? '#ffd700' : '#ccc';
+          // Charts sections with improved spacing and descriptions
+          { text: 'Violation Trends Analysis', style: 'sectionHeader', margin: [0, 30, 0, 10] },
+          { text: 'Daily breakdown of dress code violations by type', style: 'sectionDescription' },
+          violationsChartImg ? { 
+            image: violationsChartImg, 
+            width: 500, 
+            alignment: 'center', 
+            margin: [0, 10, 0, 20] 
+          } : {},
+          violationsChartTable,
+
+          { text: 'Violation Distribution', style: 'sectionHeader', margin: [0, 30, 0, 10], pageBreak: 'before' },
+          { text: 'Percentage breakdown of violation types', style: 'sectionDescription' },
+          violationsRatioImg ? { 
+            image: violationsRatioImg, 
+            width: 400, 
+            alignment: 'center', 
+            margin: [0, 10, 0, 20] 
+          } : {},
+          violationsRatioTable,
+
+          { text: 'Uniform Compliance Analysis', style: 'sectionHeader', margin: [0, 30, 0, 10], pageBreak: 'before' },
+          { text: 'Gender-based distribution of uniform compliance', style: 'sectionDescription' },
+          uniformTypeImg ? { 
+            image: uniformTypeImg, 
+            width: 500, 
+            alignment: 'center', 
+            margin: [0, 10, 0, 20] 
+          } : {},
+          uniformTypeTable,
+
+          // Report Metadata and Summary (moved to end)
+          { text: 'Report Information', style: 'sectionHeader', margin: [0, 30, 0, 10], pageBreak: 'before' },
+          {
+            columns: [
+              { 
+                stack: [
+                  { text: `Report Period:`, style: 'label' },
+                  { text: `Generated by:`, style: 'label' },
+                  { text: `Department:`, style: 'label' },
+                ],
+                width: 'auto'
+              },
+              { 
+                stack: [
+                  { text: getDateRangeText(), style: 'value' },
+                  { text: generatedBy, style: 'value' },
+                  { text: 'Office of Student Affairs', style: 'value' },
+                ],
+                width: '*'
+              }
+            ],
+            columnGap: 10,
+            margin: [0, 0, 0, 20]
           },
-          vLineColor: function(i, node) {
-            return '#eee';
+          {
+            stack: [
+              { 
+                text: 'Summary Statistics', 
+                style: 'sectionHeader',
+                margin: [0, 20, 0, 10]
+              },
+              {
+                columns: [
+                  {
+                    width: '*',
+                    table: {
+                      widths: ['*', 'auto'],
+                      body: [
+                        [
+                          { text: 'Total Violations', style: 'tableHeader' },
+                          { text: violations.length, style: 'tableCell', alignment: 'right' }
+                        ],
+                        [
+                          { text: 'Total Detections', style: 'tableHeader' },
+                          { text: detections.length, style: 'tableCell', alignment: 'right' }
+                        ],
+                        [
+                          { text: 'Compliance Rate', style: 'tableHeader' },
+                          { 
+                            text: `${((detections.length - violations.length) / detections.length * 100).toFixed(1)}%`, 
+                            style: 'tableCell',
+                            alignment: 'right'
+                          }
+                        ]
+                      ]
+                    },
+                    layout: 'lightHorizontalLines'
+                  },
+                  { width: 20, text: '' },
+                  {
+                    width: '*',
+                    table: {
+                      widths: ['*', 'auto'],
+                      body: [
+                        [
+                          { text: 'Most Common Violation', style: 'tableHeader' },
+                          { text: calculateViolationRanking()[0]?.name || 'N/A', style: 'tableCell', alignment: 'right' }
+                        ],
+                        [
+                          { text: 'Period Trend', style: 'tableHeader' },
+                          { 
+                            text: violations.length > 0 ? '↑ Increasing' : '↓ Decreasing', 
+                            style: 'tableCell',
+                            alignment: 'right'
+                          }
+                        ],
+                        [
+                          { text: 'Peak Violation Day', style: 'tableHeader' },
+                          { text: formatData()[0]?.name || 'N/A', style: 'tableCell', alignment: 'right' }
+                        ]
+                      ]
+                    },
+                    layout: 'lightHorizontalLines'
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        styles: {
+          mainHeader: {
+            fontSize: 24,
+            bold: true,
+            color: '#222',
+            alignment: 'center'
+          },
+          sectionHeader: {
+            fontSize: 18,
+            bold: true,
+            color: '#222',
+            margin: [0, 15, 0, 5]
+          },
+          sectionDescription: {
+            fontSize: 11,
+            color: '#666',
+            italics: true
+          },
+          label: {
+            fontSize: 11,
+            color: '#666',
+            margin: [0, 5, 0, 0]
+          },
+          value: {
+            fontSize: 11,
+            color: '#222',
+            margin: [0, 5, 0, 0]
+          },
+          tableHeader: {
+            fontSize: 11,
+            bold: true,
+            color: '#222',
+            margin: [0, 5, 0, 5]
+          },
+          tableCell: {
+            fontSize: 11,
+            color: '#444',
+            margin: [0, 5, 0, 5]
+          }
+        },
+        defaultStyle: {
+          fontSize: 11,
+          color: '#333'
+        },
+        tableLayouts: {
+          tableLayout: {
+            hLineWidth: function(i, node) {
+              return (i === 0 || i === node.table.body.length) ? 2 : 1;
+            },
+            hLineColor: function(i, node) {
+              return (i === 0 || i === node.table.body.length) ? '#ffd700' : '#dedede';
+            },
+            vLineWidth: function(i, node) {
+              return (i === 0 || i === node.table.widths.length) ? 2 : 1;
+            },
+            vLineColor: function(i, node) {
+              return (i === 0 || i === node.table.widths.length) ? '#ffd700' : '#dedede';
+            },
+            fillColor: function(rowIndex, node, columnIndex) {
+              return (rowIndex === 0) ? '#ffd700' : (rowIndex % 2 === 0) ? '#f9f9f9' : null;
+            },
+            paddingLeft: function(i) { return 10; },
+            paddingRight: function(i) { return 10; },
+            paddingTop: function(i) { return 5; },
+            paddingBottom: function(i) { return 5; }
           }
         }
-      }
-    };
+      };
   
-    pdfMake.createPdf(docDefinition).download('Dress Code Violations Report.pdf');
+      pdfMake.createPdf(docDefinition).download('Dress Code Violations Report.pdf');
+    } catch (error) {
+      console.error("Error generating report:", error);
+    }
   };
   // Add getDateRangeText function here
   const getDateRangeText = () => {
@@ -540,9 +718,9 @@ const Dashboard = () => {
   return (
     <Box m="30px">
       {/* HEADER */}
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Header title="Dashboard"/>
-        <Box display="flex" alignItems="center" gap="20px">
+      <Box display="flex" justifyContent="space-between" alignItems="center" paddingBottom={"20px"}>
+        <Header title="Dashboard" />
+        <Box display="flex" alignItems="center" gap="20px" paddingTop={"50px"}>
           <Box display="flex" alignItems="center" gap="20px">
             {/* From Date Picker */}
             <Box display="flex" alignItems="center">
@@ -581,21 +759,21 @@ const Dashboard = () => {
             </Box>
           </Box>
           <Button
-  sx={{
-    backgroundColor: '#ffd700',
-    color: colors.grey[100],
-    fontSize: "14px",
-    fontWeight: "bold",
-    padding: "10px 20px",
-    "&:hover": {
-      backgroundColor: '#e6c200',
-    },
-  }}
-  onClick={generateReport}
->
-  <DownloadOutlinedIcon sx={{ mr: "10px" }} />
-  Download Reports
-</Button>
+            sx={{
+              backgroundColor: '#ffd700',
+              color: colors.grey[100],
+              fontSize: "14px",
+              fontWeight: "bold",
+              padding: "10px 20px",
+              "&:hover": {
+                backgroundColor: '#e6c200',
+              },
+            }}
+            onClick={generateReport}
+          >
+          <DownloadOutlinedIcon sx={{ mr: "10px" }} />
+            Download Reports
+          </Button>
         </Box>
       </Box>
       {/* GRID & CHARTS */}
@@ -681,30 +859,83 @@ const Dashboard = () => {
               }
             }}>
               {getTodaysEvents().length > 0 ? (
-                getTodaysEvents().map((event) => (
-                  <Box
-                    key={event.id}
-                    sx={{
-                      backgroundColor: event.color || colors.primary[400],
-                      borderRadius: "8px",
-                      padding: "12px",
-                      marginBottom: "8px",
-                      opacity: 0.9,
-                      transition: "all 0.2s ease",
-                      border: `1px solid ${event.color || colors.primary[400]}`,
-                      '&:hover': {
-                        opacity: 1,
-                      }
-                    }}
-                  >
-                    <Typography 
-                      variant="h5" 
-                      color={colors.grey[100]}
+                <>
+                  {getTodaysEvents().slice(0, 3).map((event) => (
+                    <Box
+                      key={event.id}
+                      sx={{
+                        backgroundColor: event.color || colors.primary[400],
+                        borderRadius: "8px",
+                        padding: "12px",
+                        marginBottom: "8px",
+                        opacity: 0.9,
+                        transition: "all 0.2s ease",
+                        border: `1px solid ${event.color || colors.primary[400]}`,
+                        '&:hover': {
+                          opacity: 1,
+                        }
+                      }}
                     >
-                      {event.event_name}
-                    </Typography>
-                  </Box>
-                ))
+                      <Typography 
+                        variant="h5" 
+                        color={colors.grey[100]}
+                      >
+                        {event.event_name}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {getTodaysEvents().length > 3 && (
+                    <MuiTooltip
+                      title={
+                        <Box>
+                          {getTodaysEvents()
+                            .slice(3)
+                            .map((event) => (
+                              <Typography
+                                key={event.id}
+                                sx={{
+                                  color: colors.grey[100],
+                                  padding: "4px 0",
+                                  fontSize: "0.875rem",
+                                  whiteSpace: "nowrap"
+                                }}
+                              >
+                                {event.event_name}
+                              </Typography>
+                            ))}
+                        </Box>
+                      }
+                      arrow
+                      placement="bottom"
+                      componentsProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: colors.grey[800],
+                            '& .MuiTooltip-arrow': {
+                              color: colors.grey[800],
+                            },
+                          },
+                        },
+                      }}
+                    >
+                      <Typography 
+                        variant="body1" 
+                        color={colors.grey[300]} 
+                        sx={{ 
+                          textAlign: 'center',
+                          marginTop: "8px",
+                          fontStyle: 'italic',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            color: colors.grey[100],
+                          }
+                        }}
+                      >
+                        +{getTodaysEvents().length - 3} more event{getTodaysEvents().length - 3 > 1 ? 's' : ''}
+                      </Typography>
+                    </MuiTooltip>
+                  )}
+                </>
               ) : (
                 <Typography 
                   variant="body1" 
@@ -744,7 +975,7 @@ const Dashboard = () => {
                 color={colors.grey[100]}
                 mb={1}
               >
-                Violations
+                Detected Violations
               </Typography>
               <Typography
                 variant="body2"
@@ -755,21 +986,38 @@ const Dashboard = () => {
             </Box>
             <Box
               alignSelf="flex-end"
+              display="flex"
+              flexDirection="column"
+              alignItems="flex-end"
             >
               {(() => {
                 const change = calculatePercentageChange(violations);
                 return (
-                  <Typography
-                    sx={{
-                      color: !change.increased ? '#4caf50' : '#f44336',
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: '50px', 
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {!change.increased ? '↓' : '↑'} {change.percent}%
-                  </Typography>
+                  <>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography
+                        sx={{
+                          color: !change.increased ? '#4caf50' : '#f44336',
+                          display: 'flex',
+                          alignItems: 'center',
+                          fontSize: '40px', 
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {!change.increased ? '↓' : '↑'} {change.percent}%
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: !change.increased ? '#4caf50' : '#f44336',
+                          fontSize: '32px',
+                          fontWeight: 'medium',
+                          opacity: 0.7
+                        }}
+                      >
+                        ({!change.increased ? '-' : '+'}{change.difference})
+                      </Typography>
+                    </Box>
+                  </>
                 );
               })()}
             </Box>
@@ -791,7 +1039,7 @@ const Dashboard = () => {
                 color={colors.grey[100]}
                 mb={1}
               >
-                Compliance
+                Uniform Compliance
               </Typography>
               <Typography
                 variant="body2"
@@ -802,21 +1050,38 @@ const Dashboard = () => {
             </Box>
             <Box
               alignSelf="flex-end"
+              display="flex"
+              flexDirection="column"
+              alignItems="flex-end"
             >
               {(() => {
                 const change = calculateUniformPercentageChange(detections);
                 return (
-                  <Typography
-                    sx={{
-                      color: change.increased ? '#4caf50' : '#f44336',
-                      display: 'flex',
-                      alignItems: 'center',
-                      fontSize: '50px', 
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {change.increased ? '↑' : '↓'} {change.percent}%
-                  </Typography>
+                  <>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography
+                        sx={{
+                          color: change.increased ? '#4caf50' : '#f44336',
+                          display: 'flex',
+                          alignItems: 'center',
+                          fontSize: '40px', 
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {change.increased ? '↑' : '↓'} {change.percent}%
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: change.increased ? '#4caf50' : '#f44336',
+                          fontSize: '32px',
+                          fontWeight: 'medium',
+                          opacity: 0.7
+                        }}
+                      >
+                        ({change.increased ? '+' : '-'}{change.difference})
+                      </Typography>
+                    </Box>
+                  </>
                 );
               })()}
             </Box>
@@ -832,7 +1097,7 @@ const Dashboard = () => {
         >
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h3" fontWeight="bold" color={colors.grey[100]} paddingBottom={"10px"}>
-              Dress Code Violations
+              Dress Code Violation Trends
             </Typography>
           </Box>
           <Box height="300px" mt="20px">
@@ -876,7 +1141,7 @@ const Dashboard = () => {
           <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
             <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
               <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
-                Violations Ratio
+                Dress Code Violations Ratio
               </Typography>
             </Box>
           </Box>
@@ -924,12 +1189,9 @@ const Dashboard = () => {
           <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
             <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
               <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
-                Most Common Violations
+                Common Dress Code Violations
               </Typography>
             </Box>
-            <Typography variant="subtitle2" color={colors.grey[300]}>
-              {getDateRangeText(timeframe)}
-            </Typography>
           </Box>
           <Box height="260px" mt="25px">
             <div className="most-common-violations-chart" style={{ width: "100%", height: "100%" }}>
@@ -974,12 +1236,9 @@ const Dashboard = () => {
           <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
             <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
               <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
-                Uniform Type Distribution
+                Uniform Compliance Distribution
               </Typography>
             </Box>
-            <Typography variant="subtitle2" color={colors.grey[300]}>
-              {getDateRangeText(timeframe)}
-            </Typography>
           </Box>
           <Box height="260px" mt="25px">
             <div className="uniform-type-chart" style={{ width: "100%", height: "100%" }}>

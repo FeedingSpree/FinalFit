@@ -106,20 +106,22 @@ const Team = () => {
     const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const lowercase = "abcdefghijklmnopqrstuvwxyz";
     const numbers = "0123456789";
-    const all = uppercase + lowercase + numbers;
+    const symbols = "!@#$%^&*";
+    const all = uppercase + lowercase + numbers + symbols;
     
     let password = "";
-    // Ensure at least one of each type
-    password += uppercase[Math.floor(Math.random() * uppercase.length)];
-    password += lowercase[Math.floor(Math.random() * lowercase.length)];
-    password += numbers[Math.floor(Math.random() * numbers.length)];
+    // Ensure at least one of each required character type
+    password += uppercase[Math.floor(Math.random() * uppercase.length)]; // One uppercase
+    password += lowercase[Math.floor(Math.random() * lowercase.length)]; // One lowercase
+    password += numbers[Math.floor(Math.random() * numbers.length)]; // One number
+    password += symbols[Math.floor(Math.random() * symbols.length)]; // One symbol
     
-    // Fill the rest randomly
-    for (let i = password.length; i < 8; i++) {
+    // Fill the rest randomly to reach 8 characters
+    while (password.length < 8) {
       password += all[Math.floor(Math.random() * all.length)];
     }
     
-    // Shuffle the password
+    // Shuffle the password to make it more random
     return password.split('').sort(() => Math.random() - 0.5).join('');
   };
 
@@ -358,12 +360,6 @@ const Team = () => {
   };
 
   const columns = [
-    { 
-      field: "user_id", 
-      headerName: "User ID",
-      flex: 0.7,
-      sortable: true,
-    },
     {
       field: "first_name",
       headerName: "First Name",

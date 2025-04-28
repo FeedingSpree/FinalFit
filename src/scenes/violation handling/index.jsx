@@ -12,7 +12,13 @@ import {
   MenuItem,
   DialogActions,
   IconButton,
-  TextField
+  TextField,
+  FormControlLabel, 
+  Radio, 
+  RadioGroup,
+  FormLabel,
+  FormGroup,
+  Checkbox
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { 
@@ -28,6 +34,13 @@ import { getStudentRecords, addStudentRecord, updateStudentRecord, deleteStudent
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { addUserLog } from '../../services/userLogsService.ts';
+import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import pdfMake from 'pdfmake/build/pdfmake';
+import vfs from 'pdfmake/build/vfs_fonts.js';
+import html2canvas from "html2canvas";
+
+// Initialize pdfMake
+pdfMake.vfs = vfs;
 
 const CustomToolbar = ({ value, onChange }) => {
   const theme = useTheme();
@@ -399,27 +412,214 @@ const ViolationHandling = () => {
     fetchRecords();
   }, []);
 
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [reportConfig, setReportConfig] = useState({
+    timeframe: 'monthly',
+    department: 'all',
+    startDate: null,
+    endDate: null
+  });
+
+  const handleReportConfigSubmit = async () => {
+    try {
+      const user = JSON.parse(sessionStorage.getItem("user"));
+      const generatedBy = [user.first_name, user.last_name].filter(Boolean).join(' ');
+
+      // Filter records based on configuration
+      let filteredRecords = [...records];
+      
+      if (reportConfig.department !== 'all') {
+        filteredRecords = filteredRecords.filter(record => 
+          record.department === reportConfig.department
+        );
+      }
+
+      // Get date range based on timeframe
+      let startDate, endDate;
+      const currentDate = new Date();
+      
+      switch (reportConfig.timeframe) {
+        case 'weekly':
+          startDate = new Date(currentDate);
+          startDate.setDate(currentDate.getDate() - 7);
+          endDate = currentDate;
+          break;
+        case 'monthly':
+          startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+          break;
+        case 'semestral':
+          // Assuming semesters are Jun-Oct and Nov-Mar
+          const currentMonth = currentDate.getMonth();
+          if (currentMonth >= 5 && currentMonth <= 9) { // First semester
+            startDate = new Date(currentDate.getFullYear(), 5, 1);
+            endDate = new Date(currentDate.getFullYear(), 9, 31);
+          } else { // Second semester
+            startDate = currentMonth <= 4 
+              ? new Date(currentDate.getFullYear() - 1, 10, 1)
+              : new Date(currentDate.getFullYear(), 10, 1);
+            endDate = currentMonth <= 4
+              ? new Date(currentDate.getFullYear(), 2, 31)
+              : new Date(currentDate.getFullYear() + 1, 2, 31);
+          }
+          break;
+        case 'schoolYear':
+          startDate = new Date(currentDate.getFullYear(), 5, 1); // June 1st
+          endDate = new Date(currentDate.getFullYear() + 1, 4, 31); // May 31st
+          break;
+        default:
+          startDate = reportConfig.startDate;
+          endDate = reportConfig.endDate;
+      }
+
+      // Filter by date range
+      filteredRecords = filteredRecords.filter(record => {
+        const recordDate = new Date(record.date);
+        return recordDate >= startDate && recordDate <= endDate;
+      });
+
+      // Generate department-wise summary
+      const summary = {};
+      filteredRecords.forEach(record => {
+        if (!summary[record.department]) {
+          summary[record.department] = {
+            total: 0,
+            violations: { Cap: 0, Shorts: 0, Sleeveless: 0 }
+          };
+        }
+        summary[record.department].total++;
+        summary[record.department].violations[record.violation]++;
+      });
+
+      // Create the PDF document
+      const docDefinition = {
+        pageMargins: [40, 60, 40, 60],
+        header: {
+          stack: [
+            {
+              canvas: [
+                { type: 'rect', x: 0, y: 0, w: 595.28, h: 60, color: '#ffd700' }
+              ]
+            },
+            {
+              text: 'Technological Institute of the Philippines',
+              fontSize: 18,
+              bold: true,
+              alignment: 'center',
+              margin: [0, 15, 0, 0]
+            },
+            {
+              text: `${reportConfig.department === 'all' ? 'Overall' : reportConfig.department} ${
+                reportConfig.timeframe.charAt(0).toUpperCase() + reportConfig.timeframe.slice(1)
+              } Violation Report`,
+              fontSize: 14,
+              alignment: 'center',
+              margin: [0, 5, 0, 0]
+            }
+          ]
+        },
+        content: [
+          {
+            columns: [
+              {
+                text: `Period: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
+                width: '*'
+              },
+              {
+                text: `Generated by: ${generatedBy}`,
+                width: 'auto'
+              }
+            ],
+            margin: [0, 20, 0, 20]
+          },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+              body: [
+                [
+                  'Department/Program',
+                  'Cap',
+                  'Shorts',
+                  'Sleeveless',
+                  'Total'
+                ],
+                ...Object.entries(summary).map(([dept, data]) => [
+                  dept,
+                  data.violations.Cap,
+                  data.violations.Shorts,
+                  data.violations.Sleeveless,
+                  data.total
+                ])
+              ]
+            },
+            layout: {
+              fillColor: function(rowIndex) {
+                return rowIndex === 0 ? '#ffd700' : (rowIndex % 2 ? '#f8f9fa' : null);
+              }
+            }
+          }
+        ],
+        footer: function(currentPage, pageCount) {
+          return {
+            text: `Page ${currentPage} of ${pageCount}`,
+            alignment: 'right',
+            margin: [0, 0, 40, 20]
+          };
+        }
+      };
+
+      // Create and download the PDF
+      pdfMake.createPdf(docDefinition).download(`Violation_Report_${
+        reportConfig.department
+      }_${reportConfig.timeframe}.pdf`);
+
+      setIsReportDialogOpen(false);
+    } catch (error) {
+      console.error("Error generating report:", error);
+    }
+  };
+
   return (
     <Box m="20px">
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Header title="Violation Records"/>
-        <Button
-          onClick={handleAddNew}
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{
-            backgroundColor: '#ffd700',
-            color: colors.grey[100],
-            fontSize: "14px",
-            fontWeight: "bold",
-            padding: "10px 20px",
-            "&:hover": {
-              backgroundColor: '#e6c200',
-            },
-          }}
-        >
-          Add New Record
-        </Button>
+        <Box display="flex" gap="10px">
+          <Button
+            onClick={() => setIsReportDialogOpen(true)}
+            variant="contained"
+            startIcon={<DownloadOutlinedIcon />}
+            sx={{
+              backgroundColor: '#ffd700',
+              color: colors.grey[100],
+              fontSize: "14px",
+              fontWeight: "bold",
+              padding: "10px 20px",
+              "&:hover": {
+                backgroundColor: '#e6c200',
+              },
+            }}
+          >
+            Generate Report
+          </Button>
+          <Button
+            onClick={handleAddNew}
+            variant="contained"
+            startIcon={<AddIcon />}
+            sx={{
+              backgroundColor: '#ffd700',
+              color: colors.grey[100],
+              fontSize: "14px",
+              fontWeight: "bold",
+              padding: "10px 20px",
+              "&:hover": {
+                backgroundColor: '#e6c200',
+              },
+            }}
+          >
+            Add New Record
+          </Button>
+        </Box>
       </Box>
 
       <Box
@@ -524,7 +724,7 @@ const ViolationHandling = () => {
             toolbar: {
               searchText,
               onChange: handleSearch,
-          }}} 
+          }}}
           loading={isLoading}
           disableRowSelectionOnClick
           sortModel={sortModel}
@@ -976,6 +1176,103 @@ const ViolationHandling = () => {
             disabled={Object.values(formErrors).some(error => error)}
           >
             {selectedRecord ? 'Save Changes' : 'Add Record'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={isReportDialogOpen}
+        onClose={() => setIsReportDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.grey[900],
+            minWidth: '400px'
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: colors.grey[100] }}>
+          Configure Report
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <FormLabel sx={{ color: colors.grey[100] }}>Timeframe</FormLabel>
+            <RadioGroup
+              value={reportConfig.timeframe}
+              onChange={(e) => setReportConfig(prev => ({
+                ...prev,
+                timeframe: e.target.value
+              }))}
+            >
+              <FormControlLabel 
+                value="weekly" 
+                control={<Radio sx={{ color: colors.grey[100] }} />} 
+                label="Weekly"
+                sx={{ color: colors.grey[100] }}
+              />
+              <FormControlLabel 
+                value="monthly" 
+                control={<Radio sx={{ color: colors.grey[100] }} />} 
+                label="Monthly"
+                sx={{ color: colors.grey[100] }}
+              />
+              <FormControlLabel 
+                value="semestral" 
+                control={<Radio sx={{ color: colors.grey[100] }} />} 
+                label="Semestral"
+                sx={{ color: colors.grey[100] }}
+              />
+              <FormControlLabel 
+                value="schoolYear" 
+                control={<Radio sx={{ color: colors.grey[100] }} />} 
+                label="School Year"
+                sx={{ color: colors.grey[100] }}
+              />
+            </RadioGroup>
+
+            <Box sx={{ mt: 3 }}>
+              <FormLabel sx={{ color: colors.grey[100] }}>Department</FormLabel>
+              <Select
+                fullWidth
+                value={reportConfig.department}
+                onChange={(e) => setReportConfig(prev => ({
+                  ...prev,
+                  department: e.target.value
+                }))}
+                sx={{
+                  mt: 1,
+                  color: colors.grey[100],
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: colors.grey[400]
+                  }
+                }}
+              >
+                <MenuItem value="all">All Departments</MenuItem>
+                {departments.map(dept => (
+                  <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                ))}
+              </Select>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setIsReportDialogOpen(false)}
+            sx={{ color: colors.grey[100] }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleReportConfigSubmit}
+            variant="contained"
+            sx={{
+              backgroundColor: '#ffd700',
+              color: colors.grey[100],
+              '&:hover': {
+                backgroundColor: '#e6c200'
+              }
+            }}
+          >
+            Generate Report
           </Button>
         </DialogActions>
       </Dialog>
