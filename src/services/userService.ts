@@ -7,12 +7,13 @@ const usersCollectionRef = collection(db, "users");
 
 // Create a new user
 export const addUser = async (user: {
-  user_id: string;  // Add this line
+  user_id: string;
   first_name: string;
   last_name: string;
   username: string;
   password: string;
   loa: string;
+  status: string;
 }) => {
   try {
     const docRef = await addDoc(usersCollectionRef, user);
@@ -46,6 +47,7 @@ export const updateUser = async (id: string, updatedUser: {
   username: string;
   password: string;
   loa: string;
+  status: string;
 }) => {
   try {
     const userDoc = doc(db, "users", id);

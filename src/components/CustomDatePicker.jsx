@@ -6,11 +6,17 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 
-const CustomDatePicker = ({ label, value, onChange }) => {
+// Add a new prop for minimum date
+const CustomDatePicker = ({ label, value, onChange, minDate = null }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [isOpen, setIsOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date(value));
+  const [currentDate, setCurrentDate] = useState(() => {
+    const date = new Date(value);
+    // Subtract one day to display correct date in calendar
+    date.setDate(date.getDate() - 1);
+    return date;
+  });
   const pickerRef = useRef(null);
 
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -54,8 +60,20 @@ const CustomDatePicker = ({ label, value, onChange }) => {
 
   const handleDateSelect = (day) => {
     if (day) {
-      const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-      onChange(newDate.toISOString().split('T')[0]);
+      const newDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        day
+      );
+      
+      // Check if the date is after minDate if it exists
+      if (minDate && newDate < new Date(minDate)) {
+        return;
+      }
+      
+      newDate.setDate(newDate.getDate() + 1);
+      const dateString = newDate.toISOString().split('T')[0];
+      onChange(dateString);
       setIsOpen(false);
     }
   };
@@ -66,6 +84,20 @@ const CustomDatePicker = ({ label, value, onChange }) => {
     setCurrentDate(newDate);
   };
 
+  // Add a function to check if a date should be disabled
+  const isDateDisabled = (day) => {
+    if (!day || !minDate) return false;
+    
+    const checkDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      day
+    );
+    
+    return checkDate < new Date(minDate);
+  };
+
+  // Update the calendar day buttons rendering
   return (
     <Box ref={pickerRef} position="relative">
       <Button
@@ -84,7 +116,13 @@ const CustomDatePicker = ({ label, value, onChange }) => {
           },
         }}
       >
-        <Typography>{new Date(value).toLocaleDateString()}</Typography>
+        <Typography>
+          {new Date(value).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })}
+        </Typography>
         <CalendarTodayIcon />
       </Button>
 
@@ -129,7 +167,7 @@ const CustomDatePicker = ({ label, value, onChange }) => {
               <Button
                 key={index}
                 onClick={() => handleDateSelect(day)}
-                disabled={!day}
+                disabled={!day || isDateDisabled(day)}
                 sx={{
                   minWidth: 0,
                   p: 1,
@@ -137,7 +175,11 @@ const CustomDatePicker = ({ label, value, onChange }) => {
                   backgroundColor: day && new Date(value).getDate() === day ? 
                     colors.blueAccent[500] : 'transparent',
                   '&:hover': {
-                    backgroundColor: day ? colors.grey[800] : 'transparent',
+                    backgroundColor: day && !isDateDisabled(day) ? colors.grey[800] : 'transparent',
+                  },
+                  '&.Mui-disabled': {
+                    color: colors.grey[700],
+                    backgroundColor: 'transparent',
                   },
                 }}
               >

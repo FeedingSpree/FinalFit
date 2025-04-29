@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import useViolationStore from '../services/violationStore';
 import { addViolationLog } from '../services/violationLogsService.ts';
 
@@ -10,6 +10,8 @@ export const DetectionProvider = ({ children }) => {
   const addViolation = useViolationStore(state => state.addViolation);
   const violations = useViolationStore(state => state.violations);
   const [lastViolationId, setLastViolationId] = React.useState(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [isFeedInitialized, setIsFeedInitialized] = useState(false);
 
   useEffect(() => {
     const checkDetection = async () => {
@@ -18,10 +20,18 @@ export const DetectionProvider = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           
-          if (data.type === "violation" && 
+          if (!isFeedInitialized && data.type === "feed_init") {
+            setIsFeedInitialized(true);
+          }
+          
+          if (isFeedInitialized && 
+              data.type === "violation" && 
               data.data && 
               data.data.violation_id && 
               data.data.violation_id !== lastViolationId) {
+            
+            setIsDetecting(true);
+            setTimeout(() => setIsDetecting(false), 5000);
             
             const violationLog = {
               building_number: data.data.building_number,
@@ -45,10 +55,15 @@ export const DetectionProvider = ({ children }) => {
 
     const detectionInterval = setInterval(checkDetection, 1000);
     return () => clearInterval(detectionInterval);
-  }, [addViolation, lastViolationId]);
+  }, [addViolation, lastViolationId, isFeedInitialized]);
 
   return (
-    <DetectionContext.Provider value={{ violations }}>
+    <DetectionContext.Provider value={{ 
+      violations, 
+      isDetecting, 
+      isFeedInitialized,
+      setIsFeedInitialized
+    }}>
       {children}
     </DetectionContext.Provider>
   );

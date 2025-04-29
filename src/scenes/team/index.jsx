@@ -90,7 +90,8 @@ const Team = () => {
     last_name: '',
     username: '',
     password: '',
-    loa: 'SOHAS'
+    loa: 'SOHAS',
+    status: 'Active' // Add default status
   });
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -172,8 +173,9 @@ const Team = () => {
       first_name: user.first_name,
       last_name: user.last_name,
       username: user.username,
-      password: user.password, // Will show as ******** in the form
-      loa: user.loa
+      password: user.password,
+      loa: user.loa,
+      status: user.status || 'Active' // Add status
     });
     setGeneratedPassword("********"); // Set password field to show asterisks
     setFormErrors({
@@ -326,18 +328,19 @@ const Team = () => {
         await addUserLog({
           log_id: sessionUser.log_id,
           username: sessionUser.username,
-          action: "Edited a User",
+          action: `${formData.status === 'Active' ? 'Activated' : 'Deactivated'} user ${formData.username}`,
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
-        setUpdateSnackbarOpen(true); // Show update Snackbar
+        setUpdateSnackbarOpen(true);
       } else {
         // Add new user
         const userId = generateUserId();
         const userData = {
           user_id: userId,
           ...formData,
-          password: generatedPassword
+          password: generatedPassword,
+          status: 'Active' // New users are always active
         };
         await addUser(userData);
         await addUserLog({
@@ -347,7 +350,7 @@ const Team = () => {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
-        setAddSnackbarOpen(true); // Show add Snackbar
+        setAddSnackbarOpen(true);
       }
       
       const updatedUsers = await getUsers();
@@ -379,6 +382,34 @@ const Team = () => {
       headerName: "Username",
       flex: 1,
       sortable: true,
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 0.8,
+      sortable: true,
+      renderCell: ({ row: { status } }) => {
+        return (
+          <Box
+            sx={{
+              backgroundColor: status === 'Active' ? '#4caf50' : '#f44336',
+              padding: '5px 10px',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Typography sx={{ 
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }}>
+              {status}
+            </Typography>
+          </Box>
+        );
+      },
     },
     {
       field: "loa",
@@ -859,6 +890,69 @@ const Team = () => {
                 >
                   <MenuItem value="OSA">OSA</MenuItem>
                   <MenuItem value="SOHAS">SOHAS</MenuItem>
+                </Select>
+              </div>
+            </div>
+
+            {/* Add this block for status toggle */}
+            <div className="form-row">
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
+                    color: colors.grey[100],
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Status *
+                </Typography>
+                <Select
+                  className="form-input"
+                  value={formData.status}
+                  onChange={(e) => handleInputChange('status', e.target.value)}
+                  sx={{
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: colors.grey[100],
+                    },
+                    '& .MuiSelect-icon': {
+                      color: colors.grey[100],
+                    },
+                  }}
+                >
+                  <MenuItem value="Active">
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: '#4caf50'
+                        }}
+                      />
+                      Active
+                    </Box>
+                  </MenuItem>
+                  <MenuItem value="Deactivated">
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: '#f44336'
+                        }}
+                      />
+                      Deactivated
+                    </Box>
+                  </MenuItem>
                 </Select>
               </div>
             </div>

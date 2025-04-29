@@ -155,12 +155,6 @@ const AuditLogs = () => {
   };
 
   const managementColumns = [
-    { 
-      field: "dress_code_id", 
-      headerName: "Dress Code ID", 
-      flex: 0.7,
-      sortable: true,
-    },
     {
       field: "dress_code",
       headerName: "Dress Code",

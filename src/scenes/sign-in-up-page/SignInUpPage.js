@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUsers } from "../../services/userService.ts";
+import { getUsers, updateUser } from "../../services/userService.ts";
 import { addUserLog } from "../../services/userLogsService.ts";
 import "./style.css";
 
@@ -8,6 +8,10 @@ function SignInUpPage() {
   const [isRightPanelActive, setIsRightPanelActive] = useState(false);
   const [signInData, setSignInData] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockTimer, setLockTimer] = useState(0);
+  const [lastAttemptTime, setLastAttemptTime] = useState(null);
   const navigate = useNavigate();
 
   const handleSignInClick = () => setIsRightPanelActive(false);
@@ -35,6 +39,12 @@ function SignInUpPage() {
 
   const handleSignInSubmit = async (event) => {
     event.preventDefault();
+
+    if (isLocked) {
+      setError(`Account locked. Please wait ${Math.floor(lockTimer / 60)}:${(lockTimer % 60).toString().padStart(2, '0')} minutes`);
+      return;
+    }
+
     try {
       const users = await getUsers();
       const userExists = users.some(u => u.username === signInData.username);
@@ -43,11 +53,18 @@ function SignInUpPage() {
         u.password === signInData.password
       );
 
-      // Generate log ID first - will be used for the entire session
       const logId = generateLogId();
 
+      // Check if account is deactivated
+      if (userExists) {
+        const userAccount = users.find(u => u.username === signInData.username);
+        if (userAccount.status === 'Deactivated') {
+          setError("Account has been deactivated. Please contact administrator.");
+          return;
+        }
+      }
+
       if (!userExists) {
-        // Log invalid username attempt
         await createUserLog({
           log_id: logId,
           username: "Invalid Username",
@@ -55,9 +72,9 @@ function SignInUpPage() {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
+        setLoginAttempts(prev => prev + 1);
         setError("Invalid username or password");
       } else if (!user) {
-        // Log failed login attempt
         await createUserLog({
           log_id: logId,
           username: signInData.username,
@@ -65,9 +82,11 @@ function SignInUpPage() {
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
+        setLoginAttempts(prev => prev + 1);
         setError("Invalid username or password");
       } else {
-        // Log successful login
+        // Successful login
+        setLoginAttempts(0);
         await createUserLog({
           log_id: logId,
           username: signInData.username,
@@ -83,10 +102,65 @@ function SignInUpPage() {
         }));
         
         navigate("/dashboard");
+        return;
       }
+
+      // Handle login attempts consequences
+      if (loginAttempts + 1 >= 5) {
+        if (userExists) {
+          // Deactivate account
+          await handleAccountDeactivation(signInData.username);
+          setError("Account has been deactivated due to multiple failed attempts.");
+          handleTemporaryLockout(300); // 5 minutes
+        } else {
+          // Longer timeout for non-existent accounts
+          setError(`Locked locked for 8 minutes due to multiple failed attempts.`);
+          handleTemporaryLockout(480); // 8 minutes
+        }
+      } else if (loginAttempts + 1 >= 3) {
+        // Temporary timeout after 3 attempts
+        setError(`Locked for 2 minutes due to multiple failed attempts.`);
+        handleTemporaryLockout(120); // 2 minutes
+      }
+
     } catch (error) {
       console.error("Sign In Error:", error);
       setError("Sign In Failed: " + error.message);
+    }
+  };
+
+  // Effect to handle the countdown timer
+  useEffect(() => {
+    let interval;
+    if (isLocked && lockTimer > 0) {
+      interval = setInterval(() => {
+        setLockTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (lockTimer === 0) {
+      setIsLocked(false);
+    }
+    return () => clearInterval(interval);
+  }, [isLocked, lockTimer]);
+
+  // Function to handle temporary lockout
+  const handleTemporaryLockout = (duration) => {
+    setIsLocked(true);
+    setLockTimer(duration);
+  };
+
+  // Function to handle account deactivation
+  const handleAccountDeactivation = async (username) => {
+    try {
+      const users = await getUsers();
+      const user = users.find(u => u.username === username);
+      if (user) {
+        await updateUser(user.id, { ...user, status: 'Deactivated' });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error deactivating account:", error);
+      return false;
     }
   };
 
@@ -103,6 +177,7 @@ function SignInUpPage() {
                 name="username"
                 value={signInData.username}
                 onChange={handleSignInChange}
+                disabled={isLocked}
                 required
               />
             </div>
@@ -113,6 +188,7 @@ function SignInUpPage() {
                 name="password"
                 value={signInData.password}
                 onChange={handleSignInChange}
+                disabled={isLocked}
                 required
               />
             </div>

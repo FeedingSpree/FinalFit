@@ -17,8 +17,9 @@ import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import HistoryEduOutlinedIcon from '@mui/icons-material/HistoryEduOutlined';
 import { getUsers } from "../../services/userService.ts";
 import { addUserLog } from "../../services/userLogsService.ts";
+import { useDetection } from "../../context/DetectionContext";
 
-const Item = ({ title, to, icon, selected, setSelected }) => {
+const Item = ({ title, to, icon, selected, setSelected, showAlert }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   
@@ -33,7 +34,34 @@ const Item = ({ title, to, icon, selected, setSelected }) => {
       onClick={handleClick}
       icon={icon}
     >
-      <Typography>{title}</Typography>
+      <Box display="flex" alignItems="center" gap={1}>
+        <Typography>{title}</Typography>
+        {showAlert && title === "Live Feed" && (
+          <Box
+            sx={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: '#f44336',
+              animation: 'pulse-red 1.5s infinite',
+              '@keyframes pulse-red': {
+                '0%': {
+                  transform: 'scale(0.95)',
+                  boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.7)',
+                },
+                '70%': {
+                  transform: 'scale(1)',
+                  boxShadow: '0 0 0 7px rgba(244, 67, 54, 0)',
+                },
+                '100%': {
+                  transform: 'scale(0.95)',
+                  boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)',
+                },
+              },
+            }}
+          />
+        )}
+      </Box>
       <Link to={to} />
     </MenuItem>
   );
@@ -45,6 +73,9 @@ const Sidebar = ({ isSidebar }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation(); // Added useLocation hook
   const navigate = useNavigate(); // Add navigate hook
+  const { violations, isDetecting, isFeedInitialized } = useDetection();
+  const [showAlert, setShowAlert] = useState(false);
+  const [lastViolationCount, setLastViolationCount] = useState(0);
 
   // Updated initialization of selected state
   const [selected, setSelected] = useState(() => {
@@ -149,6 +180,23 @@ const Sidebar = ({ isSidebar }) => {
     }
   };
 
+  // Update the effect to consider feed initialization
+  useEffect(() => {
+    if (!isFeedInitialized) {
+      setShowAlert(false);
+      return;
+    }
+
+    if (violations.length > lastViolationCount) {
+      setShowAlert(true);
+      const timer = setTimeout(() => {
+        setShowAlert(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+    setLastViolationCount(violations.length);
+  }, [violations.length, lastViolationCount, isFeedInitialized]);
+
   return (
     <Box
       sx={{
@@ -220,7 +268,14 @@ const Sidebar = ({ isSidebar }) => {
 
           <Box paddingLeft={isCollapsed ? undefined : "10%"}>
             <Item title="Dashboard" to="/dashboard" icon={<HomeOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="Live Feed" to="/live-feed" icon={<CameraAltOutlinedIcon />} selected={selected} setSelected={setSelected} />
+            <Item 
+              title="Live Feed" 
+              to="/live-feed" 
+              icon={<CameraAltOutlinedIcon />} 
+              selected={selected} 
+              setSelected={setSelected}
+              showAlert={isFeedInitialized && showAlert}
+            />
 
             <Typography variant="h6" color={colors.grey[300]} sx={{ m: "15px 0 5px 20px" }}>
               Data

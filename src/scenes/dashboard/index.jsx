@@ -103,12 +103,15 @@ const Dashboard = () => {
   const [timeframe, setTimeframe] = useState("week");
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
-    const fromDate = new Date();
-    fromDate.setDate(today.getDate() - 6); // Set to 6 days before today
+    today.setHours(12, 0, 0, 0); // Set to noon
+    
+    const fromDate = new Date(today);
+    fromDate.setDate(today.getDate() - 6);
+    fromDate.setHours(12, 0, 0, 0); // Set to noon
     
     return {
-      startDate: fromDate.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0]
+      startDate: fromDate.toISOString().slice(0, 10),
+      endDate: today.toISOString().slice(0, 10)
     };
   });
   const generateReport = async () => {
@@ -733,10 +736,14 @@ const Dashboard = () => {
               </Typography>
               <CustomDatePicker
                 value={dateRange.startDate}
-                onChange={(newDate) => setDateRange(prev => ({
-                  ...prev,
-                  startDate: newDate
-                }))}
+                onChange={(newDate) => {
+                  setDateRange(prev => ({
+                    ...prev,
+                    startDate: newDate,
+                    // Reset end date if it's before new start date
+                    endDate: new Date(prev.endDate) < new Date(newDate) ? newDate : prev.endDate
+                  }));
+                }}
               />
             </Box>
 
@@ -751,10 +758,13 @@ const Dashboard = () => {
               </Typography>
               <CustomDatePicker
                 value={dateRange.endDate}
-                onChange={(newDate) => setDateRange(prev => ({
-                  ...prev,
-                  endDate: newDate
-                }))}
+                onChange={(newDate) => {
+                  setDateRange(prev => ({
+                    ...prev,
+                    endDate: newDate
+                  }));
+                }}
+                minDate={dateRange.startDate} // Pass start date as minimum date
               />
             </Box>
           </Box>
@@ -1158,8 +1168,8 @@ const Dashboard = () => {
                     outerRadius={90}
                     fill="#8884d8"
                     dataKey="value"
-                    startAngle={90}
-                    endAngle={-270}
+                    startAngle={60}
+                    endAngle={-300}
                   >
                     {calculateViolationsRatio().map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />

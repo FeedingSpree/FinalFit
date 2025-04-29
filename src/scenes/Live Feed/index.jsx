@@ -25,6 +25,16 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const playerRef = useRef(null);
+  const { setIsFeedInitialized } = useDetection();
+
+  useEffect(() => {
+    // Reset feed initialization when component unmounts
+    return () => {
+      if (setIsFeedInitialized) { // Add this check
+        setIsFeedInitialized(false);
+      }
+    };
+  }, [setIsFeedInitialized]); // Add dependency
 
   return (
     <Box
@@ -33,25 +43,23 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
         height: '80%',
         borderRadius: '16px',
         overflow: 'hidden',
-        backgroundColor: colors.grey[900],
+        backgroundColor: colors.grey[100],
         position: 'relative',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        boxShadow: `0 4px 8px rgba(0,0,0,0.3)`,
       }}
     >
       <Box
         sx={{
           width: "1550px",
-          height: '100%',
+          height: "835px",
           borderRadius: '12px',
           overflow: 'hidden',
           backgroundColor: colors.primary[400],
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          border: `2px solid ${colors.primary[500]}`,
         }}
       >
         <Box
@@ -68,11 +76,19 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber }) =>
             opacity: isLoading ? 0 : 1,
             transition: 'opacity 0.3s'
           }}
-          onLoad={() => setIsLoading(false)}
+          onLoad={() => {
+            setIsLoading(false);
+            if (setIsFeedInitialized) { // Add this check
+              setIsFeedInitialized(true);
+            }
+          }}
           onError={(e) => {
             console.error("Error loading feed:", e);
             setError("Failed to load video feed. Retrying...");
             setIsLoading(false);
+            if (setIsFeedInitialized) { // Add this check
+              setIsFeedInitialized(false);
+            }
           }}
         />
         {isLoading && (
@@ -119,15 +135,23 @@ const LiveFeed = () => {
   const { violations } = useDetection();
   const [showAlert, setShowAlert] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    // Skip the effect on initial render
+    if (!isInitialized) {
+      setIsInitialized(true);
+      setLastViolationCount(violations.length);
+      return;
+    }
+
     if (violations.length > lastViolationCount) {
       setShowAlert(true);
       const audio = new Audio('/alert.mp3');
       audio.play().catch(e => console.log('Audio play failed:', e));
     }
     setLastViolationCount(violations.length);
-  }, [violations.length]);
+  }, [violations.length, isInitialized]);
 
   const renderVideoFeeds = () => {
     const feeds = [];
@@ -216,7 +240,7 @@ const LiveFeed = () => {
             backgroundColor: colors.grey[900],
             p: 2,
             cursor: 'pointer',
-            border: showAlert ? `2px solid ${colors.redAccent[500]}` : '2px solid #ff0000',
+            border: showAlert ? `2px solid ${colors.redAccent[500]}` : `2px solid ${colors.grey[800]}`,
             borderRadius: '4px',
             transition: 'all 0.3s ease',
             animation: showAlert ? 'pulse 1.5s infinite' : 'none',

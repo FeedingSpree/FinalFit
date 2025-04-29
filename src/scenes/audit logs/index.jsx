@@ -144,11 +144,6 @@ const AuditLogs = () => {
 
   const columns = [
     { 
-      field: "violation_id", 
-      headerName: "Violation ID",
-      flex: 0.7,
-    },
-    { 
       field: "violation", 
       headerName: "Violation", 
       flex: 1, 
