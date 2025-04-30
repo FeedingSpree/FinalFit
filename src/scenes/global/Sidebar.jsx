@@ -76,6 +76,9 @@ const Sidebar = ({ isSidebar }) => {
   const { violations, isDetecting, isFeedInitialized } = useDetection();
   const [showAlert, setShowAlert] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
+  const [userName, setUserName] = useState("Loading...");
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [userRole, setUserRole] = useState("");
 
   // Updated initialization of selected state
   const [selected, setSelected] = useState(() => {
@@ -111,12 +114,8 @@ const Sidebar = ({ isSidebar }) => {
     setSelected(routeToTitle[path] || 'Dashboard');
   }, [location]);
 
-  const [userName, setUserName] = useState("Loading...");
-  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
-
   useEffect(() => {
-    const fetchUserName = async () => {
-      // Get user data from session storage
+    const fetchUserData = async () => {
       const sessionUser = JSON.parse(sessionStorage.getItem('user'));
       
       if (sessionUser) {
@@ -126,17 +125,15 @@ const Sidebar = ({ isSidebar }) => {
           
           if (currentUser) {
             setUserName(currentUser.username);
-          } else {
-            setUserName("Unknown User");
+            setUserRole(currentUser.loa);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
-          setUserName("Error");
         }
       }
     };
 
-    fetchUserName();
+    fetchUserData();
   }, []);
 
   const handleLogoutClick = () => {
@@ -196,6 +193,26 @@ const Sidebar = ({ isSidebar }) => {
     }
     setLastViolationCount(violations.length);
   }, [violations.length, lastViolationCount, isFeedInitialized]);
+
+  const menuItems = {
+    OSA: [
+      { title: "Dashboard", to: "/dashboard", icon: <HomeOutlinedIcon /> },
+      { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
+      { title: "Users", to: "/team", icon: <PeopleOutlinedIcon /> },
+      { title: "Policies", to: "/contacts", icon: <ContactsOutlinedIcon /> },
+      { title: "Detection Logs", to: "/invoices", icon: <ReceiptOutlinedIcon /> },
+      { title: "Violations", to: "/violations", icon: <HistoryEduOutlinedIcon /> },
+      { title: "Audit Trails", to: "/audittrails", icon: <RecentActorsOutlinedIcon /> },
+      { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
+      { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
+    ],
+    SOHAS: [
+      { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
+      { title: "Detection Logs", to: "/invoices", icon: <ReceiptOutlinedIcon /> },
+      { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
+      { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
+    ]
+  };
 
   return (
     <Box
@@ -267,30 +284,19 @@ const Sidebar = ({ isSidebar }) => {
           )}
 
           <Box paddingLeft={isCollapsed ? undefined : "10%"}>
-            <Item title="Dashboard" to="/dashboard" icon={<HomeOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item 
-              title="Live Feed" 
-              to="/live-feed" 
-              icon={<CameraAltOutlinedIcon />} 
-              selected={selected} 
-              setSelected={setSelected}
-              showAlert={isFeedInitialized && showAlert}
-            />
-
-            <Typography variant="h6" color={colors.grey[300]} sx={{ m: "15px 0 5px 20px" }}>
-              Data
-            </Typography>
-            <Item title="Users" to="/team" icon={<PeopleOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="Policies" to="/contacts" icon={<ContactsOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="Detection Logs" to="/invoices" icon={<ReceiptOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="Violations" to="/violations" icon={<HistoryEduOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="Audit Trails" to="/audittrails" icon={<RecentActorsOutlinedIcon />} selected={selected} setSelected={setSelected} />
-
-            <Typography variant="h6" color={colors.grey[300]} sx={{ m: "15px 0 5px 20px" }}>
-              Pages
-            </Typography>
-            <Item title="Calendar" to="/calendar" icon={<CalendarTodayOutlinedIcon />} selected={selected} setSelected={setSelected} />
-            <Item title="FAQ Page" to="/faq" icon={<HelpOutlineOutlinedIcon />} selected={selected} setSelected={setSelected} />
+            {menuItems[userRole]?.map((item) => (
+              <Item
+                key={item.title}
+                title={item.title}
+                to={item.to}
+                icon={item.icon}
+                selected={selected}
+                setSelected={setSelected}
+                showAlert={item.showAlert && isFeedInitialized && showAlert}
+              />
+            ))}
+            
+            {/* Logout item - always visible */}
             <Item 
               title="Logout" 
               to="#" 

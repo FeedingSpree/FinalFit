@@ -1010,7 +1010,7 @@ const Dashboard = () => {
                           color: !change.increased ? '#4caf50' : '#f44336',
                           display: 'flex',
                           alignItems: 'center',
-                          fontSize: '40px', 
+                          fontSize: '36px', 
                           fontWeight: 'bold'
                         }}
                       >
@@ -1019,7 +1019,7 @@ const Dashboard = () => {
                       <Typography
                         sx={{
                           color: !change.increased ? '#4caf50' : '#f44336',
-                          fontSize: '32px',
+                          fontSize: '20px',
                           fontWeight: 'medium',
                           opacity: 0.7
                         }}
@@ -1074,7 +1074,7 @@ const Dashboard = () => {
                           color: change.increased ? '#4caf50' : '#f44336',
                           display: 'flex',
                           alignItems: 'center',
-                          fontSize: '40px', 
+                          fontSize: '36px', 
                           fontWeight: 'bold'
                         }}
                       >
@@ -1083,7 +1083,7 @@ const Dashboard = () => {
                       <Typography
                         sx={{
                           color: change.increased ? '#4caf50' : '#f44336',
-                          fontSize: '32px',
+                          fontSize: '20px',
                           fontWeight: 'medium',
                           opacity: 0.7
                         }}

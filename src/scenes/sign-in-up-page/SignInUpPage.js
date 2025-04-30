@@ -101,7 +101,12 @@ function SignInUpPage() {
           log_id: logId
         }));
         
-        navigate("/dashboard");
+        // Redirect based on user role
+        if (user.loa === "SOHAS") {
+          navigate("/live-feed");
+        } else {
+          navigate("/dashboard");
+        }
         return;
       }
 

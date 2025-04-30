@@ -25,8 +25,10 @@ import ViolationHandling from "./scenes/violation handling"; // Add this import
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from "./theme";
 import { DetectionProvider } from "./context/DetectionContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Unauthorized from "./scenes/unauthorized";
 
-function App() { 
+function App() {
   const [theme, colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
 
@@ -38,38 +40,62 @@ function App() {
           <div className="app" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
             <Routes>
               <Route path="/" element={<SignInUpPage />} />
-              <Route path="/dashboard" element={
-                <>
-                  <Sidebar isSidebar={isSidebar} />
-                  <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
-                    <Dashboard />
-                  </main>
-                </>
-              } /> 
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              
+              {/* Protected Routes */}
               <Route path="/*" element={
                 <>
                   <Sidebar isSidebar={isSidebar} />
                   <main className="content" style={{ flexGrow: 1, overflow: 'auto' }}>
                     <Routes>
-                      <Route path="/team" element={<Team />} />
-                      <Route path="/Utest" element={<UTest />} />
-                      <Route path="/Mtest" element={<MTest />} />
-                      <Route path="/Otest" element={<OTest />} />
-                      <Route path="/Stest" element={<STest />} />
-                      <Route path="/Vtest" element={<VTest />} />
-                      <Route path="/Ttest" element={<TTest />} />
-                      <Route path="/contacts" element={<Contacts />} />
-                      <Route path="/invoices" element={<Invoices />} />
-                      <Route path="/audittrails" element={<UserLogs />} />
-                      <Route path="/form" element={<Form />} />
-                      <Route path="/bar" element={<Bar />} />
-                      <Route path="/pie" element={<Pie />} />
-                      <Route path="/line" element={<Line />} />
-                      <Route path="/faq" element={<FAQ />} />
-                      <Route path="/calendar" element={<Calendar />} />
-                      <Route path="/geography" element={<Geography />} />
-                      <Route path="/violations" element={<ViolationHandling />} /> {/* Add this route */}
-                      <Route path="/live-feed" element={<LiveFeed />} />
+                      {/* OSA Only Routes */}
+                      <Route path="/dashboard" element={
+                        <ProtectedRoute allowedRoles={["OSA"]}>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/team" element={
+                        <ProtectedRoute allowedRoles={["OSA"]}>
+                          <Team />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/contacts" element={
+                        <ProtectedRoute allowedRoles={["OSA"]}>
+                          <Contacts />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/audittrails" element={
+                        <ProtectedRoute allowedRoles={["OSA"]}>
+                          <UserLogs />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/violations" element={
+                        <ProtectedRoute allowedRoles={["OSA"]}>
+                          <ViolationHandling />
+                        </ProtectedRoute>
+                      } />
+
+                      {/* Shared Routes (OSA & SOHAS) */}
+                      <Route path="/live-feed" element={
+                        <ProtectedRoute allowedRoles={["OSA", "SOHAS"]}>
+                          <LiveFeed />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/invoices" element={
+                        <ProtectedRoute allowedRoles={["OSA", "SOHAS"]}>
+                          <Invoices />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/calendar" element={
+                        <ProtectedRoute allowedRoles={["OSA", "SOHAS"]}>
+                          <Calendar />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/faq" element={
+                        <ProtectedRoute allowedRoles={["OSA", "SOHAS"]}>
+                          <FAQ />
+                        </ProtectedRoute>
+                      } />
                     </Routes>
                   </main>
                 </>
