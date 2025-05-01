@@ -249,7 +249,21 @@ const FAQ = () => {
                 2. In the dialog that appears:
                 <Box sx={{ ml: 2, mt: 1 }}>
                   • Enter the event name<br/>
-                  • Set the end date if needed
+                  • Set the end date <br/>
+                  <Typography 
+                    color={colors.grey[100]} 
+                    sx={{ 
+                      mt: 1,
+                      fontSize: "0.9em",
+                      fontStyle: "italic",
+                      borderLeft: `2px solid ${colors.grey[400]}`,
+                      pl: 2,
+                      ml: 1
+                    }}
+                  >
+                    Note: The end date you select will be the day after your event's last active day. 
+                    For example, if you want your event to run through May 2, select May 3 as the end date.
+                  </Typography>
                 </Box>
               </Typography>
               <Typography color={colors.grey[100]} component="div" mt={2}>

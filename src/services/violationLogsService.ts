@@ -56,3 +56,16 @@ export const updateViolationLog = async (id: string, updatedLog: any) => {
 export const deleteViolationLog = async (id: string) => {
     await deleteDoc(doc(db, "violationlogs", id));
 };
+
+export const getNonViolationLogs = async () => {
+    try {
+        const querySnapshot = await getDocs(collection(db, "nonviolationlogs"));
+        return querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error("Error fetching non-violation logs: ", error);
+        throw error;
+    }
+};

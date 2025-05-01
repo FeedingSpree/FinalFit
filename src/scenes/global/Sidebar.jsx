@@ -4,7 +4,6 @@ import { Box, IconButton, Typography, useTheme, Dialog, DialogActions, DialogCon
 import { Link, useLocation, useNavigate } from "react-router-dom"; // Add useNavigate
 import "react-pro-sidebar/dist/css/styles.css";
 import { tokens } from "../../theme";
-import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import ContactsOutlinedIcon from "@mui/icons-material/ContactsOutlined";
 import RecentActorsOutlinedIcon from '@mui/icons-material/RecentActorsOutlined';
@@ -14,10 +13,12 @@ import HelpOutlineOutlinedIcon from "@mui/icons-material/HelpOutlineOutlined";
 import ExitToAppOutlinedIcon from '@mui/icons-material/ExitToAppOutlined';
 import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import AnalyticsOutlinedIcon from '@mui/icons-material/AnalyticsOutlined';
 import HistoryEduOutlinedIcon from '@mui/icons-material/HistoryEduOutlined';
 import { getUsers } from "../../services/userService.ts";
 import { addUserLog } from "../../services/userLogsService.ts";
 import { useDetection } from "../../context/DetectionContext";
+
 
 const Item = ({ title, to, icon, selected, setSelected, showAlert }) => {
   const theme = useTheme();
@@ -196,7 +197,7 @@ const Sidebar = ({ isSidebar }) => {
 
   const menuItems = {
     OSA: [
-      { title: "Dashboard", to: "/dashboard", icon: <HomeOutlinedIcon /> },
+      { title: "Dashboard", to: "/dashboard", icon: <AnalyticsOutlinedIcon /> },
       { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
       { title: "Users", to: "/team", icon: <PeopleOutlinedIcon /> },
       { title: "Policies", to: "/contacts", icon: <ContactsOutlinedIcon /> },

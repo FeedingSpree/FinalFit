@@ -123,7 +123,7 @@ const Dashboard = () => {
       await addUserLog({
         log_id: user.log_id,
         username: user.username,
-        action: "Generated Report",
+        action: "Generated Dashboard Report",
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().split(' ')[0]
       });
@@ -697,15 +697,23 @@ const Dashboard = () => {
     return canvas.toDataURL("image/png");
   };
 
-  // Add this helper function
+  // Update the getTodaysEvents function
   const getTodaysEvents = () => {
     const today = new Date();
     const todayFormatted = `${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}-${today.getFullYear()}`;
 
     return calendarEvents.filter(event => {
       const startDate = new Date(convertMMDDYYYYToDate(event.start_date));
+      // Create end date and subtract one day
       const endDate = new Date(convertMMDDYYYYToDate(event.end_date));
+      endDate.setDate(endDate.getDate() - 1); // Subtract one day from end date
+      
       const todayDate = new Date(convertMMDDYYYYToDate(todayFormatted));
+      
+      // Set all times to midnight for consistent comparison
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+      todayDate.setHours(0, 0, 0, 0);
       
       return todayDate >= startDate && todayDate <= endDate;
     });

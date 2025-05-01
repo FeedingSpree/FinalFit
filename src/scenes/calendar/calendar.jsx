@@ -46,6 +46,19 @@ const getRandomColor = () => {
   return colors[Math.floor(Math.random() * colors.length)];
 };
 
+const getTodayStr = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today.toISOString().slice(0, 10);
+};
+
+const getTomorrowStr = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow.toISOString().slice(0, 10);
+};
+
 const Calendar = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
@@ -60,16 +73,44 @@ const Calendar = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState(null);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const showError = (message) => {
+    setErrorMessage(message);
+    setErrorDialogOpen(true);
+  };
 
   const handleDateClick = (selected) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const selectedDate = new Date(selected.startStr);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      alert("Cannot create events for past dates");
+      return;
+    }
+
     setSelectedDateInfo(selected);
-    setNewEventEndDate(selected.startStr); // Default end date to start date
+    const nextDay = new Date(selectedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    setNewEventEndDate(nextDay.toISOString().slice(0, 10));
     setAddDialogOpen(true);
   };
 
   const handleAddEvent = async () => {
     if (!newEventTitle || !selectedDateInfo || !newEventEndDate) {
-      alert("Please fill in all required fields");
+      showError("Please fill in all required fields");
+      return;
+    }
+
+    const startDate = new Date(selectedDateInfo.startStr);
+    const endDate = new Date(newEventEndDate);
+    
+    if (endDate <= startDate) {
+      showError("End date must be after the start date");
       return;
     }
 
@@ -77,11 +118,9 @@ const Calendar = () => {
       const color = getRandomColor();
       const user = JSON.parse(sessionStorage.getItem('user'));
       
-      // Get the dates in yyyy-mm-dd format from the date picker
       const pickerStartDate = selectedDateInfo.startStr;
       const pickerEndDate = newEventEndDate;
       
-      // Convert to mm-dd-yyyy for storage
       const startParts = pickerStartDate.split('-');
       const endParts = pickerEndDate.split('-');
       
@@ -98,7 +137,6 @@ const Calendar = () => {
 
       await addCalendarEvent(eventData);
 
-      // Add user log for event creation
       await addUserLog({
         log_id: user.log_id,
         username: user.username,
@@ -107,17 +145,16 @@ const Calendar = () => {
         time: new Date().toTimeString().split(' ')[0]
       });
 
-      // Refresh events and count
       const events = await getCalendarEvents();
       setCustomEvents(events.map(mapEventForCalendar));
-      setEventCount(events.length);  // Update count after adding
+      setEventCount(events.length);
 
       setNewEventTitle("");
       setNewEventEndDate("");
       setAddDialogOpen(false);
     } catch (error) {
       console.error("Error adding event:", error);
-      alert(`Failed to add event: ${error.message}`);
+      showError(`Failed to add event: ${error.message}`);
     }
   };
 
@@ -131,7 +168,6 @@ const Calendar = () => {
       const user = JSON.parse(sessionStorage.getItem('user'));
       await deleteCalendarEvent(eventToDelete.id);
       
-      // Add user log for event deletion
       await addUserLog({
         log_id: user.log_id,
         username: user.username,
@@ -140,10 +176,9 @@ const Calendar = () => {
         time: new Date().toTimeString().split(' ')[0]
       });
 
-      // Refresh events and count
       const events = await getCalendarEvents();
       setCustomEvents(events.map(mapEventForCalendar));
-      setEventCount(events.length);  // Update count after deleting
+      setEventCount(events.length);
 
       setDeleteDialogOpen(false);
       setEventToDelete(null);
@@ -170,7 +205,6 @@ const Calendar = () => {
       const user = JSON.parse(sessionStorage.getItem('user'));
       await Promise.all(selectedEvents.map(id => deleteCalendarEvent(id)));
       
-      // Add user log for bulk deletion
       await addUserLog({
         log_id: user.log_id,
         username: user.username,
@@ -179,10 +213,9 @@ const Calendar = () => {
         time: new Date().toTimeString().split(' ')[0]
       });
 
-      // Refresh events and count
       const events = await getCalendarEvents();
       setCustomEvents(events.map(mapEventForCalendar));
-      setEventCount(events.length);  // Update count after bulk deleting
+      setEventCount(events.length);
 
       setSelectedEvents([]);
       setBulkDeleteDialogOpen(false);
@@ -205,7 +238,6 @@ const Calendar = () => {
     <Box m="20px">
       <Header title="Calendar" subtitle="Events Calendar" />
 
-      {/* Add Event Dialog */}
       <Dialog
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
@@ -303,9 +335,19 @@ const Calendar = () => {
                   className="form-input"
                   type="date"
                   value={newEventEndDate}
-                  onChange={(e) => setNewEventEndDate(e.target.value)}
+                  onChange={(e) => {
+                    const selectedEnd = new Date(e.target.value);
+                    const start = new Date(selectedDateInfo.startStr);
+                    
+                    if (selectedEnd <= start) {
+                      showError("End date must be after the start date");
+                      return;
+                    }
+                    
+                    setNewEventEndDate(e.target.value);
+                  }}
                   inputProps={{
-                    min: selectedDateInfo ? selectedDateInfo.startStr : undefined,
+                    min: selectedDateInfo ? new Date(selectedDateInfo.startStr).toISOString().slice(0, 10) : getTomorrowStr(),
                   }}
                   sx={{
                     color: colors.grey[100],
@@ -357,7 +399,6 @@ const Calendar = () => {
       </Dialog>
 
       <Box display="flex" flexDirection={{ xs: "column", md: "row" }} justifyContent="space-between">
-        {/* CALENDAR SIDEBAR */}
         <Box
           flex="1 1 20%"
           backgroundColor={colors.grey[900]}
@@ -419,7 +460,6 @@ const Calendar = () => {
           </List>
         </Box>
 
-        {/* CALENDAR */}
         <Box flex="1 1 100%" ml={{ xs: 0, md: "15px" }}>
           <FullCalendar
             height="75vh"
@@ -438,25 +478,35 @@ const Calendar = () => {
             editable={true}
             selectable={true}
             selectMirror={true}
-            dayMaxEvents={3} // Changed from true to 3
+            dayMaxEvents={3}
             select={handleDateClick}
             eventClick={handleEventClick}
             events={customEvents}
-            eventDisplay="block" // Makes events more visible
-            eventTimeFormat={{ // Removes time display since these are all-day events
+            eventDisplay="block"
+            eventTimeFormat={{
               hour: undefined,
               minute: undefined,
               meridiem: false
             }}
             views={{
               dayGrid: {
-                dayMaxEvents: 3 // Ensure month view shows max 3 events
+                dayMaxEvents: 3
               },
               timeGrid: {
-                dayMaxEvents: 3 // Ensure week view shows max 3 events
+                dayMaxEvents: 3
               }
             }}
-            // Custom styling for better visibility
+            selectConstraint={{
+              start: getTodayStr(),
+              end: '2100-12-31'
+            }}
+            selectOverlap={true}
+            selectAllow={(selectInfo) => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const selectedDate = new Date(selectInfo.start);
+              return selectedDate >= today;
+            }}
             eventDidMount={(info) => {
               info.el.style.fontSize = '0.85em';
               info.el.style.padding = '2px 4px';
@@ -469,7 +519,6 @@ const Calendar = () => {
         </Box>
       </Box>
 
-      {/* Single Event Delete Dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
@@ -509,7 +558,6 @@ const Calendar = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Bulk Delete Dialog */}
       <Dialog
         open={bulkDeleteDialogOpen}
         onClose={() => setBulkDeleteDialogOpen(false)}
@@ -548,11 +596,46 @@ const Calendar = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+        open={errorDialogOpen}
+        onClose={() => setErrorDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            backgroundColor: colors.grey[900],
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: colors.grey[100] }}>
+          Error
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: colors.grey[100] }}>
+            {errorMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ backgroundColor: colors.grey[900], padding: '20px' }}>
+          <Button
+            onClick={() => setErrorDialogOpen(false)}
+            variant="contained"
+            sx={{
+              backgroundColor: '#f44336',
+              color: colors.grey[100],
+              fontWeight: "bold",
+              padding: "10px 20px",
+              "&:hover": {
+                backgroundColor: '#d32f2f',
+              },
+            }}
+          >
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
-// First, update the date conversion helpers
 function toISODate(mmddyyyy) {
   if (!mmddyyyy) return undefined;
   const [month, day, year] = mmddyyyy.split("-");
@@ -568,20 +651,8 @@ function toMMDDYYYY(isoDate) {
 }
 
 const mapEventForCalendar = (e) => {
-  // Start date conversion (unchanged)
   const start = toISODate(e.start_date);
-  
-  // End date handling
-  let end;
-  if (e.end_date) {
-    const isoEnd = toISODate(e.end_date);
-    if (isoEnd) {
-      // Add one day to the end date for FullCalendar's exclusive end date
-      const [year, month, day] = isoEnd.split("-");
-      const nextDay = new Date(parseInt(year), parseInt(month) - 1, parseInt(day) + 1);
-      end = nextDay.toISOString().split('T')[0];
-    }
-  }
+  const end = e.end_date ? toISODate(e.end_date) : undefined;
 
   return {
     id: e.id,

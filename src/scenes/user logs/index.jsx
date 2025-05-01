@@ -6,6 +6,7 @@ import {
   Modal,
   TextField,
   Alert,
+  Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { 
@@ -25,9 +26,10 @@ import {
   deleteUserLog
 } from "../../services/userLogsService.ts";
 
-const CustomToolbar = ({ searchText, onSearchChange }) => {
+const CustomToolbar = ({ searchText, onSearchChange, dateFilter, onDateChange }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
   return (
     <GridToolbarContainer sx={{ padding: "8px" }}>
       <Box
@@ -37,6 +39,7 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
           display: "flex",
           alignItems: "center",
           width: "100%",
+          gap: 2
         }}
       >
         <TextField
@@ -47,7 +50,6 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
           onChange={(e) => onSearchChange(e.target.value)}
           sx={{
             width: "300px",
-            marginRight: "16px",
             "& .MuiOutlinedInput-root": {
               backgroundColor: colors.primary[400],
               color: colors.grey[100],
@@ -63,7 +65,43 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
             },
           }}
         />
-        <GridToolbarFilterButton />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              color: colors.grey[100],
+              fontSize: '0.875rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Search by date:
+          </Typography>
+          <TextField
+            type="date"
+            size="small"
+            value={dateFilter}
+            onChange={(e) => onDateChange(e.target.value)}
+            sx={{
+              width: "200px",
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: colors.primary[400],
+                color: colors.grey[100],
+                "& fieldset": {
+                  borderColor: colors.grey[400],
+                },
+                "&:hover fieldset": {
+                  borderColor: colors.grey[300],
+                },
+              },
+              "& .MuiOutlinedInput-input": {
+                color: colors.grey[100],
+                "&::-webkit-calendar-picker-indicator": {
+                  cursor: "pointer"
+                }
+              },
+            }}
+          />
+        </Box>
         <GridToolbarDensitySelector />
         <GridToolbarExport />
       </Box>
@@ -75,6 +113,7 @@ const UserLogs = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [logs, setLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLog, setCurrentLog] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -89,6 +128,7 @@ const UserLogs = () => {
     },
   ]);
   const [searchText, setSearchText] = useState("");
+  const [dateFilter, setDateFilter] = useState('');
 
   useEffect(() => {
     fetchLogs();
@@ -96,7 +136,8 @@ const UserLogs = () => {
 
   const fetchLogs = async () => {
     const data = await getUserLogs();
-    setLogs(data);
+    setAllLogs(data);  // Store all logs
+    setLogs(data);     // Set current displayed logs
   };
 
   const handleOpenModal = (log = null) => {
@@ -134,9 +175,61 @@ const UserLogs = () => {
 
   const handleSearch = (searchValue) => {
     setSearchText(searchValue);
+    
+    let filteredLogs = [...allLogs];
+    
+    // Apply date filter if exists
+    if (dateFilter) {
+      filteredLogs = filteredLogs.filter(log => log.date === dateFilter);
+    }
+    
+    // Apply search filter if exists
+    if (searchValue) {
+      filteredLogs = filteredLogs.filter(log => 
+        Object.values(log).some(value => 
+          value && value.toString().toLowerCase().includes(searchValue.toLowerCase())
+        )
+      );
+    }
+    
+    setLogs(filteredLogs);
     setFilterModel({
       ...filterModel,
-      quickFilterValues: searchValue ? [searchValue] : [],
+      quickFilterValues: searchValue ? [searchValue] : []
+    });
+  };
+
+  const handleDateChange = async (date) => {
+    setDateFilter(date);
+    
+    let filteredLogs = [...allLogs];
+    
+    // Apply date filter if exists
+    if (date) {
+      filteredLogs = filteredLogs.filter(log => log.date === date);
+    }
+    
+    // Apply search filter if exists
+    if (searchText) {
+      filteredLogs = filteredLogs.filter(log => 
+        Object.values(log).some(value => 
+          value && value.toString().toLowerCase().includes(searchText.toLowerCase())
+        )
+      );
+    }
+    
+    setLogs(filteredLogs);
+    setFilterModel({
+      ...filterModel,
+      items: [
+        ...filterModel.items.filter(item => item.field !== 'date'),
+        ...(date ? [{
+          field: 'date',
+          operator: 'equals',
+          value: date
+        }] : [])
+      ],
+      quickFilterValues: searchText ? [searchText] : []
     });
   };
 
@@ -205,6 +298,8 @@ const UserLogs = () => {
             toolbar: {
               searchText,
               onSearchChange: handleSearch,
+              dateFilter,
+              onDateChange: handleDateChange,
             }
           }}
           sortModel={sortModel}

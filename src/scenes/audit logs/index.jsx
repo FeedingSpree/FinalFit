@@ -6,11 +6,11 @@ import {
   Modal,
   TextField,
   Alert,
+  Typography,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { 
   GridToolbarContainer,
-  GridToolbarFilterButton,
   GridToolbarDensitySelector,
   GridToolbarExport
 } from '@mui/x-data-grid';
@@ -22,10 +22,11 @@ import {
   getViolationLogs,
   addViolationLog,
   updateViolationLog,
-  deleteViolationLog
+  deleteViolationLog,
+  getNonViolationLogs // Add this import
 } from "../../services/violationLogsService.ts";
 
-const CustomToolbar = ({ searchText, onSearchChange }) => {
+const CustomToolbar = ({ searchText, onSearchChange, dateFilter, onDateChange }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   
@@ -38,6 +39,7 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
           display: "flex",
           alignItems: "center",
           width: "100%",
+          gap: 2
         }}
       >
         <TextField
@@ -48,7 +50,6 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
           onChange={(e) => onSearchChange(e.target.value)}
           sx={{
             width: "300px",
-            marginRight: "16px",
             "& .MuiOutlinedInput-root": {
               backgroundColor: colors.primary[400],
               color: colors.grey[100],
@@ -64,7 +65,43 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
             },
           }}
         />
-        <GridToolbarFilterButton />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              color: colors.grey[100],
+              fontSize: '0.875rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Search by date:
+          </Typography>
+          <TextField
+            type="date"
+            size="small"
+            value={dateFilter}
+            onChange={(e) => onDateChange(e.target.value)}
+            sx={{
+              width: "200px",
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: colors.primary[400],
+                color: colors.grey[100],
+                "& fieldset": {
+                  borderColor: colors.grey[400],
+                },
+                "&:hover fieldset": {
+                  borderColor: colors.grey[300],
+                },
+              },
+              "& .MuiOutlinedInput-input": {
+                color: colors.grey[100],
+                "&::-webkit-calendar-picker-indicator": {
+                  cursor: "pointer"
+                }
+              },
+            }}
+          />
+        </Box>
         <GridToolbarDensitySelector />
         <GridToolbarExport />
       </Box>
@@ -76,6 +113,9 @@ const AuditLogs = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [logs, setLogs] = useState([]);
+  const [nonViolationLogs, setNonViolationLogs] = useState([]); // Add this state
+  const [allViolationLogs, setAllViolationLogs] = useState([]); // Add new state for storing all logs
+  const [allNonViolationLogs, setAllNonViolationLogs] = useState([]); // Add new state for storing all logs
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentLog, setCurrentLog] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -90,14 +130,64 @@ const AuditLogs = () => {
     },
   ]);
   const [searchText, setSearchText] = useState("");
+  const [activeTable, setActiveTable] = useState('violations'); // Add this state
+  const [dateFilter, setDateFilter] = useState(""); // Add this state
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [activeTable]); // Add activeTable as dependency
 
   const fetchLogs = async () => {
-    const data = await getViolationLogs();
-    setLogs(data);
+    if (activeTable === 'violations') {
+      const data = await getViolationLogs();
+      setAllViolationLogs(data);  // Store complete dataset
+      setLogs(data);              // Set displayed data
+    } else {
+      const data = await getNonViolationLogs();
+      setAllNonViolationLogs(data);  // Store complete dataset
+      setNonViolationLogs(data);     // Set displayed data
+    }
+  };
+
+  const handleDateChange = async (date) => {
+    setDateFilter(date);
+    
+    let filteredLogs = activeTable === 'violations' 
+      ? [...allViolationLogs] 
+      : [...allNonViolationLogs];
+    
+    // Apply date filter
+    if (date) {
+      filteredLogs = filteredLogs.filter(log => log.date === date);
+    }
+    
+    // Apply search filter if exists
+    if (searchText) {
+      filteredLogs = filteredLogs.filter(log => 
+        Object.values(log).some(value => 
+          value && value.toString().toLowerCase().includes(searchText.toLowerCase())
+        )
+      );
+    }
+    
+    // Update appropriate state based on active table
+    if (activeTable === 'violations') {
+      setLogs(filteredLogs);
+    } else {
+      setNonViolationLogs(filteredLogs);
+    }
+
+    setFilterModel({
+      ...filterModel,
+      items: [
+        ...filterModel.items.filter(item => item.field !== 'date'),
+        ...(date ? [{
+          field: 'date',
+          operator: 'equals',
+          value: date
+        }] : [])
+      ]
+    });
   };
 
   const handleOpenModal = (log = null) => {
@@ -136,13 +226,39 @@ const AuditLogs = () => {
 
   const handleSearch = (searchValue) => {
     setSearchText(searchValue);
+    
+    let filteredLogs = activeTable === 'violations' 
+      ? [...allViolationLogs] 
+      : [...allNonViolationLogs];
+    
+    // Apply date filter if exists
+    if (dateFilter) {
+      filteredLogs = filteredLogs.filter(log => log.date === dateFilter);
+    }
+    
+    // Apply search filter
+    if (searchValue) {
+      filteredLogs = filteredLogs.filter(log => 
+        Object.values(log).some(value => 
+          value && value.toString().toLowerCase().includes(searchValue.toLowerCase())
+        )
+      );
+    }
+    
+    // Update appropriate state based on active table
+    if (activeTable === 'violations') {
+      setLogs(filteredLogs);
+    } else {
+      setNonViolationLogs(filteredLogs);
+    }
+
     setFilterModel({
       ...filterModel,
-      quickFilterValues: searchValue ? [searchValue] : [],
+      quickFilterValues: searchValue ? [searchValue] : []
     });
   };
 
-  const columns = [
+  const violationColumns = [
     { 
       field: "violation", 
       headerName: "Violation", 
@@ -152,16 +268,6 @@ const AuditLogs = () => {
         // Capitalize first letter of the violation value
         return value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
       }
-    },
-    { 
-      field: "building_number", 
-      headerName: "Building Number", 
-      flex: 1 
-    },
-    { 
-      field: "floor_number", 
-      headerName: "Floor Number", 
-      flex: 1 
     },
     {
       field: "date",
@@ -195,14 +301,89 @@ const AuditLogs = () => {
     },
   ];
 
+  const nonViolationColumns = [
+    { 
+      field: "detection", 
+      headerName: "Non-Violation", 
+      flex: 1, 
+      cellClassName: "detection-column--cell",
+      valueFormatter: ({ value }) => {
+        return value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
+      }
+    },
+    {
+      field: "date",
+      headerName: "Date",
+      flex: 1,
+      valueFormatter: ({ value }) => {
+        if (!value) return '';
+        const [year, month, day] = value.split('-');
+        const months = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        return `${months[parseInt(month) - 1]} ${parseInt(day)}, ${year}`;
+      }
+    },
+    {
+      field: "time",
+      headerName: "Time",
+      flex: 1,
+      valueFormatter: ({ value }) => {
+        if (!value) return '';
+        const [hours, minutes, seconds] = value.split(':');
+        const hour = parseInt(hours);
+        const ampm = hour >= 12 ? 'PM' : 'AM';
+        const hour12 = hour % 12 || 12;
+        return `${hour12}:${minutes}:${seconds} ${ampm}`;
+      }
+    },
+  ];
+
   return (
     <Box m="20px">
-      <Header title="Detection Logs"/>
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Header title="Detection Logs" />
+        <Box>
+          <Button
+            onClick={() => setActiveTable('violations')}
+            variant={activeTable === 'violations' ? 'contained' : 'outlined'}
+            sx={{ 
+              mr: 2,
+              backgroundColor: activeTable === 'violations' ? '#ffd700' : 'transparent',
+              color: activeTable === 'violations' ? colors.primary[500] : colors.grey[100],
+              fontSize: '14px',
+              fontWeight: 'bold',
+              '&:hover': {
+                backgroundColor: activeTable === 'violations' ? '#e6c200' : colors.grey[800]
+              }
+            }}
+          >
+            Violation Logs
+          </Button>
+          <Button
+            onClick={() => setActiveTable('nonviolations')}
+            variant={activeTable === 'nonviolations' ? 'contained' : 'outlined'}
+            sx={{ 
+              backgroundColor: activeTable === 'nonviolations' ? '#ffd700' : 'transparent',
+              color: activeTable === 'nonviolations' ? colors.primary[500] : colors.grey[100],
+              fontWeight: 'bold',
+              fontSize: '14px',
+              '&:hover': {
+                backgroundColor: activeTable === 'nonviolations' ? '#e6c200' : colors.grey[800]
+              }
+            }}
+          >
+            Non-Violation Logs
+          </Button>
+        </Box>
+      </Box>
+
       <Box m="0px 0 0 0" height="88vh">
         <DataGrid
           checkboxSelection
-          rows={logs}
-          columns={columns}
+          rows={activeTable === 'violations' ? logs : nonViolationLogs}
+          columns={activeTable === 'violations' ? violationColumns : nonViolationColumns}
           components={{
             Toolbar: CustomToolbar
           }}
@@ -210,6 +391,8 @@ const AuditLogs = () => {
             toolbar: {
               searchText,
               onSearchChange: handleSearch,
+              dateFilter,
+              onDateChange: handleDateChange,
             }
           }}
           sortModel={sortModel}

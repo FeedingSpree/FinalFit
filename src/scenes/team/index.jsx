@@ -91,7 +91,7 @@ const Team = () => {
     username: '',
     password: '',
     loa: 'SOHAS',
-    status: 'Active' // Add default status
+    status: 'Active' // Default status
   });
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -157,7 +157,8 @@ const Team = () => {
       last_name: '',
       username: '',
       password: newPassword,
-      loa: 'SOHAS'
+      loa: 'SOHAS',
+      status: 'Active' // Set default status for new users
     });
     setFormErrors({
       first_name: '',
@@ -222,7 +223,8 @@ const Team = () => {
       last_name: '',
       username: '',
       password: '',
-      loa: 'SOHAS'
+      loa: 'SOHAS',
+      status: 'Active' // Default status
     });
     setFormErrors({
       first_name: '',
@@ -338,9 +340,8 @@ const Team = () => {
         const userId = generateUserId();
         const userData = {
           user_id: userId,
-          ...formData,
-          password: generatedPassword,
-          status: 'Active' // New users are always active
+          ...formData, // This will now include the selected status
+          password: generatedPassword
         };
         await addUser(userData);
         await addUserLog({

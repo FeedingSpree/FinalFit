@@ -42,7 +42,7 @@ import html2canvas from "html2canvas";
 // Initialize pdfMake
 pdfMake.vfs = vfs;
 
-const CustomToolbar = ({ value, onChange }) => {
+const CustomToolbar = ({ value, onChange, dateFilter, onDateChange }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   
@@ -55,6 +55,7 @@ const CustomToolbar = ({ value, onChange }) => {
           display: "flex",
           alignItems: "center",
           width: "100%",
+          gap: 2
         }}
       >
         <TextField
@@ -65,7 +66,6 @@ const CustomToolbar = ({ value, onChange }) => {
           onChange={(e) => onChange(e.target.value)}
           sx={{
             width: "300px",
-            marginRight: "16px",
             "& .MuiOutlinedInput-root": {
               backgroundColor: colors.primary[400],
               color: colors.grey[100],
@@ -81,7 +81,43 @@ const CustomToolbar = ({ value, onChange }) => {
             },
           }}
         />
-        <GridToolbarFilterButton />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              color: colors.grey[100],
+              fontSize: '0.875rem',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Search by date:
+          </Typography>
+          <TextField
+            type="date"
+            size="small"
+            value={dateFilter}
+            onChange={(e) => onDateChange(e.target.value)}
+            sx={{
+              width: "200px",
+              "& .MuiOutlinedInput-root": {
+                backgroundColor: colors.primary[400],
+                color: colors.grey[100],
+                "& fieldset": {
+                  borderColor: colors.grey[400],
+                },
+                "&:hover fieldset": {
+                  borderColor: colors.grey[300],
+                },
+              },
+              "& .MuiOutlinedInput-input": {
+                color: colors.grey[100],
+                "&::-webkit-calendar-picker-indicator": {
+                  cursor: "pointer"
+                }
+              },
+            }}
+          />
+        </Box>
         <GridToolbarDensitySelector />
         <GridToolbarExport />
       </Box>
@@ -94,6 +130,7 @@ const ViolationHandling = () => {
   const colors = tokens(theme.palette.mode);
   
   const [records, setRecords] = useState([]);
+  const [allRecords, setAllRecords] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState({
@@ -128,6 +165,7 @@ const ViolationHandling = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [selectedRows, setSelectedRows] = useState([]);
+  const [dateFilter, setDateFilter] = useState('');
 
   const yearLevels = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"];
   const departments = [
@@ -175,7 +213,27 @@ const ViolationHandling = () => {
     ]
   };
 
-  const violations = ["Cap", "Shorts", "Sleeveless"];
+  const [customViolations, setCustomViolations] = useState([
+    "Cap", "Shorts", "Sleeveless"  // Initial violations
+  ]);
+
+  const [newViolation, setNewViolation] = useState('');
+
+  const handleViolationInput = (value) => {
+    if (value === 'other') {
+      // Don't do anything when 'other' is selected
+      return;
+    }
+    handleInputChange('violation', value);
+  };
+
+  const handleAddCustomViolation = (violation) => {
+    if (violation && !customViolations.includes(violation)) {
+      setCustomViolations(prev => [...prev, violation]);
+      handleInputChange('violation', violation);
+      setNewViolation(''); // Clear the input
+    }
+  };
 
   const validateName = (name) => {
     const nameRegex = /^[A-Za-z\s]+$/;
@@ -205,6 +263,46 @@ const ViolationHandling = () => {
 
   const handleSortModelChange = (newSortModel) => {
     setSortModel(newSortModel);
+  };
+
+  const handleDateChange = async (date) => {
+    setDateFilter(date);
+    
+    let filteredRecords = [...allRecords];
+    
+    // Apply date filter
+    if (date) {
+      const [year, month, day] = date.split('-');
+      const formattedDate = `${month}-${day}-${year}`;
+      filteredRecords = filteredRecords.filter(record => {
+        const recordDate = new Date(record.date);
+        const selectedDate = new Date(formattedDate);
+        return recordDate.toDateString() === selectedDate.toDateString();
+      });
+    }
+    
+    // Apply search filter if exists
+    if (searchText) {
+      filteredRecords = filteredRecords.filter(record =>
+        Object.values(record)
+          .join(' ')
+          .toLowerCase()
+          .includes(searchText.toLowerCase())
+      );
+    }
+    
+    setRecords(filteredRecords);
+    setFilterModel({
+      ...filterModel,
+      items: [
+        ...filterModel.items.filter(item => item.field !== 'date'),
+        ...(date ? [{
+          field: 'date',
+          operator: 'equals',
+          value: date
+        }] : [])
+      ]
+    });
   };
 
   const columns = [
@@ -390,18 +488,44 @@ const ViolationHandling = () => {
 
   const handleSearch = useCallback((searchValue) => {
     setSearchText(searchValue);
-    setFilterModel(prev => ({
-      ...prev,
+    
+    let filteredRecords = [...allRecords];
+    
+    // Apply date filter if exists
+    if (dateFilter) {
+      const [year, month, day] = dateFilter.split('-');
+      const formattedDate = `${month}-${day}-${year}`;
+      filteredRecords = filteredRecords.filter(record => {
+        const recordDate = new Date(record.date);
+        const selectedDate = new Date(formattedDate);
+        return recordDate.toDateString() === selectedDate.toDateString();
+      });
+    }
+    
+    // Apply search filter
+    if (searchValue) {
+      filteredRecords = filteredRecords.filter(record =>
+        Object.values(record)
+          .join(' ')
+          .toLowerCase()
+          .includes(searchValue.toLowerCase())
+      );
+    }
+    
+    setRecords(filteredRecords);
+    setFilterModel({
+      ...filterModel,
       quickFilterValues: searchValue ? [searchValue] : []
-    }));
-  }, []);
+    });
+  }, [allRecords, dateFilter, filterModel]);
 
   useEffect(() => {
     const fetchRecords = async () => {
       try {
         setIsLoading(true);
         const fetchedRecords = await getStudentRecords();
-        setRecords(fetchedRecords);
+        setAllRecords(fetchedRecords); // Store all records
+        setRecords(fetchedRecords);    // Display records
       } catch (error) {
         console.error("Error fetching records:", error);
       } finally {
@@ -1005,8 +1129,10 @@ const ViolationHandling = () => {
           }}
           componentsProps={{
             toolbar: {
-              searchText,
+              value: searchText,
               onChange: handleSearch,
+              dateFilter,
+              onDateChange: handleDateChange,
           }}}
           loading={isLoading}
           disableRowSelectionOnClick
@@ -1361,7 +1487,7 @@ const ViolationHandling = () => {
                 <Select
                   className="form-input"
                   value={formData.violation}
-                  onChange={(e) => handleInputChange('violation', e.target.value)}
+                  onChange={(e) => handleViolationInput(e.target.value)}
                   error={!!formErrors.violation}
                   sx={{
                     color: colors.grey[100],
@@ -1380,9 +1506,53 @@ const ViolationHandling = () => {
                     },
                   }}
                 >
-                  {violations.map((violation) => (
+                  {/* Default violations */}
+                  {customViolations.map((violation) => (
                     <MenuItem key={violation} value={violation}>{violation}</MenuItem>
                   ))}
+                  {/* Option to add new violation */}
+                  <MenuItem value="other">
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      width: '100%' // Ensure full width
+                    }}>
+                      <AddIcon fontSize="small" />
+                      <TextField
+                        value={newViolation}
+                        placeholder="Type and press Enter to add..."
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setNewViolation(e.target.value);
+                        }}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                          if (e.key === 'Enter' && newViolation.trim()) {
+                            e.preventDefault();
+                            handleAddCustomViolation(newViolation.trim());
+                          }
+                        }}
+                        sx={{
+                          width: '100%', // Make TextField fill available space
+                          '& .MuiOutlinedInput-root': {
+                            '& fieldset': { border: 'none' },
+                          },
+                          '& .MuiInputBase-input': {
+                            color: colors.grey[100],
+                            padding: '8px 0', // Increase vertical padding
+                            fontSize: '1rem', // Increase font size
+                            '&::placeholder': {
+                              color: colors.grey[400],
+                              opacity: 1,
+                              fontSize: '0.95rem', // Slightly larger placeholder text
+                            }
+                          }
+                        }}
+                      />
+                    </Box>
+                  </MenuItem>
                 </Select>
               </div>
               {formErrors.violation && (
