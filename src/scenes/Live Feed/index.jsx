@@ -132,8 +132,8 @@ const LiveFeed = () => {
   const [selectedBuilding, setSelectedBuilding] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const { violations } = useDetection();
-  const [showAlert, setShowAlert] = useState(false);
+  const { violations, setShowAlert } = useDetection();
+  const [showAlert, setShowAlertState] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -146,12 +146,18 @@ const LiveFeed = () => {
     }
 
     if (violations.length > lastViolationCount) {
-      setShowAlert(true);
+      setShowAlert(true); // Update context alert state
+      setShowAlertState(true); // Update local alert state
       const audio = new Audio('/alert.mp3');
       audio.play().catch(e => console.log('Audio play failed:', e));
     }
     setLastViolationCount(violations.length);
-  }, [violations.length, isInitialized]);
+  }, [violations.length, isInitialized, setShowAlert]);
+
+  const handleAlertClose = () => {
+    setShowAlertState(false);
+    setShowAlert(false); // Update context alert state
+  };
 
   const renderVideoFeeds = () => {
     const feeds = [];
@@ -284,7 +290,7 @@ const LiveFeed = () => {
             <IconButton 
               onClick={(e) => {
                 e.stopPropagation();
-                setShowAlert(false);
+                setShowAlertState(false);
               }}
               sx={{ 
                 color: colors.grey[100],
@@ -348,14 +354,14 @@ const LiveFeed = () => {
       <Snackbar
         open={showAlert}
         autoHideDuration={5000}
-        onClose={() => setShowAlert(false)}
+        onClose={handleAlertClose}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Alert
           severity="error"
           variant="filled"
           sx={{ width: '100%' }}
-          onClose={() => setShowAlert(false)}
+          onClose={handleAlertClose}
         >
           New Dress Code Violation Detected!
         </Alert>

@@ -2,21 +2,10 @@ import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import Sidebar from "./scenes/global/Sidebar";
 import Dashboard from "./scenes/dashboard";
-import Team from "./scenes/team";
-import Invoices from "./scenes/audit logs";
-import Contacts from "./scenes/policies";
-import Bar from "./scenes/bar";
-import Form from "./scenes/form";
-import Line from "./scenes/line";
-import Pie from "./scenes/pie";
+import Users from "./scenes/users";
+import DetectionLogs from "./scenes/detection logs";
+import Policies from "./scenes/policies";
 import FAQ from "./scenes/faq";
-import UTest from "./scenes/test/userTest";
-import MTest from "./scenes/test/managementTest";
-import OTest from "./scenes/test/osaTest";
-import STest from "./scenes/test/sohasTest";
-import VTest from "./scenes/test/violationLogsTest";
-import TTest from "./scenes/test/userLogsTest";
-import Geography from "./scenes/geography";
 import Calendar from "./scenes/calendar/calendar";
 import UserLogs from "./scenes/user logs";
 import LiveFeed from "./scenes/Live Feed"; // Import the Live Feed page
@@ -54,14 +43,14 @@ function App() {
                           <Dashboard />
                         </ProtectedRoute>
                       } />
-                      <Route path="/team" element={
+                      <Route path="/users" element={
                         <ProtectedRoute allowedRoles={["OSA"]}>
-                          <Team />
+                          <Users />
                         </ProtectedRoute>
                       } />
-                      <Route path="/contacts" element={
+                      <Route path="/policies" element={
                         <ProtectedRoute allowedRoles={["OSA"]}>
-                          <Contacts />
+                          <Policies />
                         </ProtectedRoute>
                       } />
                       <Route path="/audittrails" element={
@@ -81,9 +70,9 @@ function App() {
                           <LiveFeed />
                         </ProtectedRoute>
                       } />
-                      <Route path="/invoices" element={
+                      <Route path="/detectionlogs" element={
                         <ProtectedRoute allowedRoles={["OSA", "SOHAS"]}>
-                          <Invoices />
+                          <DetectionLogs />
                         </ProtectedRoute>
                       } />
                       <Route path="/calendar" element={

@@ -2,7 +2,13 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import useViolationStore from '../services/violationStore';
 import { addViolationLog } from '../services/violationLogsService.ts';
 
-const DetectionContext = createContext();
+export const DetectionContext = createContext({
+  violations: [],
+  isDetecting: false,
+  isFeedInitialized: false,
+  showAlert: false,
+  setShowAlert: () => {},
+});
 
 export const useDetection = () => useContext(DetectionContext);
 
@@ -12,6 +18,8 @@ export const DetectionProvider = ({ children }) => {
   const [lastViolationId, setLastViolationId] = React.useState(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isFeedInitialized, setIsFeedInitialized] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [lastViolationCount, setLastViolationCount] = useState(0);
 
   useEffect(() => {
     const checkDetection = async () => {
@@ -57,12 +65,33 @@ export const DetectionProvider = ({ children }) => {
     return () => clearInterval(detectionInterval);
   }, [addViolation, lastViolationId, isFeedInitialized]);
 
+  useEffect(() => {
+    if (!isFeedInitialized) return;
+
+    if (violations.length > lastViolationCount) {
+      setShowAlert(true);
+    }
+    setLastViolationCount(violations.length);
+  }, [violations.length, lastViolationCount, isFeedInitialized]);
+
+  useEffect(() => {
+    let timer;
+    if (showAlert) {
+      timer = setTimeout(() => {
+        setShowAlert(false);
+      }, 5000); // Match Snackbar autoHideDuration
+    }
+    return () => clearTimeout(timer);
+  }, [showAlert]);
+
   return (
     <DetectionContext.Provider value={{ 
       violations, 
       isDetecting, 
       isFeedInitialized,
-      setIsFeedInitialized
+      setIsFeedInitialized,
+      showAlert,
+      setShowAlert
     }}>
       {children}
     </DetectionContext.Provider>

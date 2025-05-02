@@ -1,4 +1,4 @@
-import { Box, Button, IconButton, MenuItem, Select, Typography, useTheme, Tooltip as MuiTooltip } from "@mui/material";
+import { Box, Button, Typography, useTheme, Tooltip as MuiTooltip } from "@mui/material";
 import { tokens } from "../../theme";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import Header from "../../components/Header";
@@ -148,7 +148,24 @@ const Dashboard = () => {
             ])
           ]
         },
-        layout: 'tableLayout',
+        layout: {
+          fillColor: function(rowIndex, node, columnIndex) {
+            return rowIndex === 0 ? '#ffd700' : (rowIndex % 2 === 0 ? '#f9f9f9' : null);
+          },
+          hLineWidth: function(i, node) {
+            return 0.5;
+          },
+          vLineWidth: function(i) {
+            return 0;
+          },
+          hLineColor: function(i, node) {
+            return '#e0e0e0';
+          },
+          paddingLeft: function(i) { return 8; },
+          paddingRight: function(i) { return 8; },
+          paddingTop: function(i) { return 6; },
+          paddingBottom: function(i) { return 6; }
+        },
         pageBreak: 'avoid',
         margin: [0, 10, 0, 20],
         alignment: 'center'
@@ -168,7 +185,24 @@ const Dashboard = () => {
             ...violationsRatioData
           ]
         },
-        layout: 'tableLayout',
+        layout: {
+          fillColor: function(rowIndex, node, columnIndex) {
+            return rowIndex === 0 ? '#ffd700' : (rowIndex % 2 === 0 ? '#f9f9f9' : null);
+          },
+          hLineWidth: function(i, node) {
+            return 0.5;
+          },
+          vLineWidth: function(i) {
+            return 0;
+          },
+          hLineColor: function(i, node) {
+            return '#e0e0e0';
+          },
+          paddingLeft: function(i) { return 8; },
+          paddingRight: function(i) { return 8; },
+          paddingTop: function(i) { return 6; },
+          paddingBottom: function(i) { return 6; }
+        },
         pageBreak: 'avoid',
         margin: [50, 10, 50, 20],
         alignment: 'center'
@@ -176,7 +210,9 @@ const Dashboard = () => {
 
       const mostCommonViolationsTable = {
         table: {
-          widths: [100, 100],
+          headerRows: 1,
+          widths: ['*', '*'],
+          alignment: 'center',
           body: [
             ['Violation Type', 'Count'],
             ...calculateViolationRanking().map(row => [
@@ -184,7 +220,28 @@ const Dashboard = () => {
               row.value
             ])
           ]
-        }
+        },
+        layout: {
+          fillColor: function(rowIndex, node, columnIndex) {
+            return rowIndex === 0 ? '#ffd700' : (rowIndex % 2 === 0 ? '#f9f9f9' : null);
+          },
+          hLineWidth: function(i, node) {
+            return 0.5;
+          },
+          vLineWidth: function(i) {
+            return 0;
+          },
+          hLineColor: function(i, node) {
+            return '#e0e0e0';
+          },
+          paddingLeft: function(i) { return 8; },
+          paddingRight: function(i) { return 8; },
+          paddingTop: function(i) { return 6; },
+          paddingBottom: function(i) { return 6; }
+        },
+        pageBreak: 'avoid',
+        margin: [20, 10, 20, 20],
+        alignment: 'center'
       };
 
       const uniformTypeTable = {
@@ -200,7 +257,24 @@ const Dashboard = () => {
             ])
           ]
         },
-        layout: 'tableLayout',
+        layout: {
+          fillColor: function(rowIndex, node, columnIndex) {
+            return rowIndex === 0 ? '#ffd700' : (rowIndex % 2 === 0 ? '#f9f9f9' : null);
+          },
+          hLineWidth: function(i, node) {
+            return 0.5;
+          },
+          vLineWidth: function(i) {
+            return 0;
+          },
+          hLineColor: function(i, node) {
+            return '#e0e0e0';
+          },
+          paddingLeft: function(i) { return 8; },
+          paddingRight: function(i) { return 8; },
+          paddingTop: function(i) { return 6; },
+          paddingBottom: function(i) { return 6; }
+        },
         pageBreak: 'avoid',
         margin: [20, 10, 20, 20],
         alignment: 'center'
@@ -245,7 +319,11 @@ const Dashboard = () => {
               {
                 columns: [
                   { 
-                    text: `Generated on: ${new Date().toLocaleString()}`,
+                    text: `Generated on: ${new Date().toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}`,
                     fontSize: 8,
                     color: '#666',
                     margin: [40, 5, 0, 0]
@@ -283,11 +361,21 @@ const Dashboard = () => {
           { text: 'Percentage breakdown of violation types', style: 'sectionDescription' },
           violationsRatioImg ? { 
             image: violationsRatioImg, 
-            width: 400, 
+            width: 500, 
             alignment: 'center', 
             margin: [0, 10, 0, 20] 
           } : {},
           violationsRatioTable,
+
+          { text: 'Most Common Violations', style: 'sectionHeader', margin: [0, 30, 0, 10], pageBreak: 'before' },
+          { text: 'Ranking of violations by frequency', style: 'sectionDescription' },
+          mostCommonViolationsImg ? {
+            image: mostCommonViolationsImg,
+            width: 500,
+            alignment: 'center',
+            margin: [0, 10, 0, 20]
+          } : {},
+          mostCommonViolationsTable,
 
           { text: 'Uniform Compliance Analysis', style: 'sectionHeader', margin: [0, 30, 0, 10], pageBreak: 'before' },
           { text: 'Gender-based distribution of uniform compliance', style: 'sectionDescription' },
@@ -307,7 +395,6 @@ const Dashboard = () => {
                 stack: [
                   { text: `Report Period:`, style: 'label' },
                   { text: `Generated by:`, style: 'label' },
-                  { text: `Department:`, style: 'label' },
                 ],
                 width: 'auto'
               },
@@ -315,7 +402,6 @@ const Dashboard = () => {
                 stack: [
                   { text: getDateRangeText(), style: 'value' },
                   { text: generatedBy, style: 'value' },
-                  { text: 'Office of Student Affairs', style: 'value' },
                 ],
                 width: '*'
               }
@@ -503,40 +589,43 @@ const Dashboard = () => {
     return checkDate >= start && checkDate <= end;
   };
 
-  // Add this helper function after your existing helper functions
+  // Update getDateInterval for better granularity
   const getDateInterval = (start, end) => {
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays <= 7) return { unit: 'day', step: 1 }; // Show every day
-    if (diffDays <= 31) return { unit: 'day', step: 2 }; // Show every other day
-    if (diffDays <= 90) return { unit: 'week', step: 1 }; // Show weekly
-    if (diffDays <= 365) return { unit: 'month', step: 1 }; // Show monthly
-    return { unit: 'month', step: 3 }; // Show quarterly
+    if (diffDays <= 31) return { unit: 'day', step: 1 }; // Show daily up to a month
+    if (diffDays <= 90) return { unit: 'week', step: 1 }; // Show weekly up to 3 months
+    return { unit: 'month', step: 1 }; // Show monthly for longer periods
   };
 
-  // Update your formatData function
+  // Update the formatData function
   const formatData = () => {
     const start = new Date(dateRange.startDate);
     const end = new Date(dateRange.endDate);
-    const interval = getDateInterval(start, end);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
     
+    const interval = getDateInterval(start, end);
+
+    // Filter violations within date range and normalize dates
+    const filteredViolations = violations.filter(v => {
+      const vDate = new Date(v.date);
+      vDate.setHours(0, 0, 0, 0);
+      return vDate >= start && vDate <= end;
+    });
+
     let dates = [];
     if (interval.unit === 'day') {
-      const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      dates = Array.from({ length: Math.ceil(diffDays / interval.step) + 1 }, (_, i) => {
-        const date = new Date(start);
-        date.setDate(date.getDate() + (i * interval.step));
-        return {
-          fullDate: date.toISOString().split('T')[0],
-          display: date.toLocaleDateString(undefined, { 
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + interval.step)) {
+        dates.push({
+          fullDate: new Date(d).toISOString().split('T')[0],
+          display: new Date(d).toLocaleDateString(undefined, { 
             month: 'short',
             day: 'numeric'
           })
-        };
-      });
+        });
+      }
     } else if (interval.unit === 'week') {
       let current = new Date(start);
       while (current <= end) {
@@ -558,51 +647,39 @@ const Dashboard = () => {
             year: 'numeric'
           })
         });
-        current.setMonth(current.getMonth() + interval.step);
+        current.setMonth(current.getMonth() + 1);
       }
     }
 
+    // Initialize data points with zero counts
     const grouped = {};
     dates.forEach(date => {
-      grouped[date.display] = {
+      grouped[date.fullDate] = {
         name: date.display,
         cap: 0,
         shorts: 0,
-        no_sleeves: 0
+        no_sleeves: 0,
+        date: date.fullDate
       };
     });
 
-    // Aggregate violations based on interval
-    violations.forEach(v => {
-      if (isDateInRange(v.date)) {
-        const vDate = new Date(v.date);
-        let key;
-        
-        if (interval.unit === 'day') {
-          key = vDate.toLocaleDateString(undefined, { 
-            month: 'short',
-            day: 'numeric'
-          });
-        } else if (interval.unit === 'week') {
-          key = `W${Math.ceil((vDate.getDate() + vDate.getDay()) / 7)} ${vDate.toLocaleDateString(undefined, { 
-            month: 'short'
-          })}`;
-        } else if (interval.unit === 'month') {
-          key = vDate.toLocaleDateString(undefined, { 
-            month: 'short',
-            year: 'numeric'
-          });
-        }
-
-        if (grouped[key]) {
-          if (v.violation === "cap") grouped[key].cap += 1;
-          if (v.violation === "shorts") grouped[key].shorts += 1;
-          if (v.violation === "no_sleeves") grouped[key].no_sleeves += 1;
-        }
+    // Aggregate violations using normalized dates
+    filteredViolations.forEach(violation => {
+      const vDate = new Date(violation.date);
+      vDate.setHours(0, 0, 0, 0);
+      const dateKey = vDate.toISOString().split('T')[0];
+      
+      if (grouped[dateKey]) {
+        if (violation.violation === "cap") grouped[dateKey].cap += 1;
+        if (violation.violation === "shorts") grouped[dateKey].shorts += 1;
+        if (violation.violation === "no_sleeves") grouped[dateKey].no_sleeves += 1;
       }
     });
 
-    return Object.values(grouped);
+    // Convert to array and ensure proper date sorting
+    return Object.values(grouped).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
   };
 
   // PIE CHART

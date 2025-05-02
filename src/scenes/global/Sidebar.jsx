@@ -19,25 +19,21 @@ import { getUsers } from "../../services/userService.ts";
 import { addUserLog } from "../../services/userLogsService.ts";
 import { useDetection } from "../../context/DetectionContext";
 
-
 const Item = ({ title, to, icon, selected, setSelected, showAlert }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const { showAlert: contextShowAlert } = useDetection();
   
-  const handleClick = () => {
-    setSelected(title);
-  };
-
   return (
     <MenuItem
       active={selected === title}
       style={{ color: colors.grey[100] }}
-      onClick={handleClick}
+      onClick={() => setSelected(title)}
       icon={icon}
     >
       <Box display="flex" alignItems="center" gap={1}>
         <Typography>{title}</Typography>
-        {showAlert && title === "Live Feed" && (
+        {contextShowAlert && title === "Live Feed" && (
           <Box
             sx={{
               width: '8px',
@@ -74,8 +70,7 @@ const Sidebar = ({ isSidebar }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation(); // Added useLocation hook
   const navigate = useNavigate(); // Add navigate hook
-  const { violations, isDetecting, isFeedInitialized } = useDetection();
-  const [showAlert, setShowAlert] = useState(false);
+  const { violations, isDetecting, isFeedInitialized, showAlert } = useDetection();
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [userName, setUserName] = useState("Loading...");
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
@@ -87,9 +82,9 @@ const Sidebar = ({ isSidebar }) => {
     const routeToTitle = {
       '/dashboard': 'Dashboard',
       '/live-feed': 'Live Feed',
-      '/team': 'Users',
-      '/contacts': 'Policies',
-      '/invoices': 'Detection Logs',
+      '/users': 'Users',
+      '/policies': 'Policies',
+      '/detectionlogs': 'Detection Logs',
       '/audittrails': 'Audit Trails',
       '/violations': 'Violations', // Add this
       '/calendar': 'Calendar',
@@ -104,9 +99,9 @@ const Sidebar = ({ isSidebar }) => {
     const routeToTitle = {
       '/dashboard': 'Dashboard',
       '/live-feed': 'Live Feed',
-      '/team': 'Users',
-      '/contacts': 'Policies',
-      '/invoices': 'Detection Logs',
+      '/users': 'Users',
+      '/policies': 'Policies',
+      '/detectionlogs': 'Detection Logs',
       '/audittrails': 'Audit Trails',
       '/violations': 'Violations', // Add this
       '/calendar': 'Calendar',
@@ -178,30 +173,13 @@ const Sidebar = ({ isSidebar }) => {
     }
   };
 
-  // Update the effect to consider feed initialization
-  useEffect(() => {
-    if (!isFeedInitialized) {
-      setShowAlert(false);
-      return;
-    }
-
-    if (violations.length > lastViolationCount) {
-      setShowAlert(true);
-      const timer = setTimeout(() => {
-        setShowAlert(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-    setLastViolationCount(violations.length);
-  }, [violations.length, lastViolationCount, isFeedInitialized]);
-
   const menuItems = {
     OSA: [
       { title: "Dashboard", to: "/dashboard", icon: <AnalyticsOutlinedIcon /> },
       { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
-      { title: "Users", to: "/team", icon: <PeopleOutlinedIcon /> },
-      { title: "Policies", to: "/contacts", icon: <ContactsOutlinedIcon /> },
-      { title: "Detection Logs", to: "/invoices", icon: <ReceiptOutlinedIcon /> },
+      { title: "Users", to: "/users", icon: <PeopleOutlinedIcon /> },
+      { title: "Policies", to: "/policies", icon: <ContactsOutlinedIcon /> },
+      { title: "Detection Logs", to: "/detectionlogs", icon: <ReceiptOutlinedIcon /> },
       { title: "Violations", to: "/violations", icon: <HistoryEduOutlinedIcon /> },
       { title: "Audit Trails", to: "/audittrails", icon: <RecentActorsOutlinedIcon /> },
       { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
@@ -209,7 +187,7 @@ const Sidebar = ({ isSidebar }) => {
     ],
     SOHAS: [
       { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
-      { title: "Detection Logs", to: "/invoices", icon: <ReceiptOutlinedIcon /> },
+      { title: "Detection Logs", to: "/detectionlogs", icon: <ReceiptOutlinedIcon /> },
       { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
       { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
     ]

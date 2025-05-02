@@ -14,8 +14,8 @@ import {
   GridToolbarDensitySelector,
   GridToolbarExport
 } from '@mui/x-data-grid';
-import { tokens } from "../../theme";
-import Header from "../../components/Header";
+import { tokens } from "../../theme.js";
+import Header from "../../components/Header.jsx";
 
 // Firebase service functions
 import {

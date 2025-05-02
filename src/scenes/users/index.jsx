@@ -1,11 +1,11 @@
 import { Box, Button, Typography, useTheme, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, OutlinedInput, Select, Snackbar, Alert, TextField } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { tokens } from "../../theme";
+import { tokens } from "../../theme.js";
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
-import Header from "../../components/Header";
+import Header from "../../components/Header.jsx";
 import React, { useEffect, useState } from "react";
 import { getUsers, addUser, updateUser, deleteUser } from "../../services/userService.ts";  // Assuming getUsers, addUser, updateUser, and deleteUser are in userService.ts
 import { addUserLog } from "../../services/userLogsService.ts"; // Add import for addUserLog
@@ -64,7 +64,7 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
   );
 };
 
-const Team = () => {
+const Users = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [users, setUsers] = useState([]);
@@ -1205,4 +1205,4 @@ const Team = () => {
   );
 };
 
-export default Team;
+export default Users;
