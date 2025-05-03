@@ -132,7 +132,7 @@ const LiveFeed = () => {
   const [selectedBuilding, setSelectedBuilding] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const { violations, setShowAlert } = useDetection();
+  const { violations, setShowAlert, hourlyViolations } = useDetection();  // Add hourlyViolations
   const [showAlert, setShowAlertState] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -285,22 +285,8 @@ const LiveFeed = () => {
                   }}
                 />
               )}
-              {violations.length} Dress Code Violations Detected in the Past Hour
+              {hourlyViolations} Dress Code Violations Detected in the Past Hour
             </Typography>
-            <IconButton 
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAlertState(false);
-              }}
-              sx={{ 
-                color: colors.grey[100],
-                '&:hover': {
-                  color: colors.redAccent[500]
-                }
-              }}
-            >
-              <RefreshIcon />
-            </IconButton>
           </Box>
         </Paper>
 

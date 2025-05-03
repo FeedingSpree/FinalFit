@@ -1233,7 +1233,7 @@ const Dashboard = () => {
           p="20px"
           borderRadius="16px"
         >
-          <Box display="flex" justifyContent="space-between" alignItems="center" flexDirection="column">
+          <Box display="flex" justifyContent="sp ace-between" alignItems="center" flexDirection="column">
             <Box display="flex" justifyContent="space-between" alignItems="center" width="100%">
               <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
                 Dress Code Violations Ratio
@@ -1247,7 +1247,7 @@ const Dashboard = () => {
                   <Pie
                     data={calculateViolationsRatio()}
                     cx="50%"
-                    cy="55%"
+                    cy="50%"
                     labelLine={true}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={90}
@@ -1266,7 +1266,7 @@ const Dashboard = () => {
                       name
                     ]} 
                   />
-                  <Legend />
+                <Legend layout="vertical" verticalAlign="middle" align="right" />
                 </PieChart>
               </ResponsiveContainer>
             </div>

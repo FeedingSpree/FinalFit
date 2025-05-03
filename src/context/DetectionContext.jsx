@@ -8,6 +8,7 @@ export const DetectionContext = createContext({
   isFeedInitialized: false,
   showAlert: false,
   setShowAlert: () => {},
+  hourlyViolations: 0,
 });
 
 export const useDetection = () => useContext(DetectionContext);
@@ -20,6 +21,7 @@ export const DetectionProvider = ({ children }) => {
   const [isFeedInitialized, setIsFeedInitialized] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
+  const [hourlyViolations, setHourlyViolations] = useState(0);
 
   useEffect(() => {
     const checkDetection = async () => {
@@ -28,12 +30,8 @@ export const DetectionProvider = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           
-          if (!isFeedInitialized && data.type === "feed_init") {
-            setIsFeedInitialized(true);
-          }
-          
-          if (isFeedInitialized && 
-              data.type === "violation" && 
+          // Only process if it's a violation type and has data
+          if (data.type === "violation" && 
               data.data && 
               data.data.violation_id && 
               data.data.violation_id !== lastViolationId) {
@@ -51,9 +49,24 @@ export const DetectionProvider = ({ children }) => {
               violation_id: data.data.violation_id
             };
 
+            // Update hourly violations count only for new violations
+            setHourlyViolations(prev => {
+              const oneHourAgo = new Date();
+              oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+              const violationDate = new Date(`${data.data.date}T${data.data.time}`);
+              
+              // Only increment for new violations within the last hour
+              if (violationDate > oneHourAgo) {
+                console.log(`New violation detected: ${data.data.violation}`); // Debug log
+                return prev + 1;
+              }
+              return prev;
+            });
+
             setLastViolationId(data.data.violation_id);
             await addViolationLog(violationLog);
             addViolation(violationLog);
+            setShowAlert(true);
           }
         }
       } catch (error) {
@@ -61,9 +74,27 @@ export const DetectionProvider = ({ children }) => {
       }
     };
 
-    const detectionInterval = setInterval(checkDetection, 1000);
-    return () => clearInterval(detectionInterval);
-  }, [addViolation, lastViolationId, isFeedInitialized]);
+    // Check for detections more frequently
+    const detectionInterval = setInterval(checkDetection, 500);
+
+    // Clean up old violations every minute
+    const cleanupInterval = setInterval(() => {
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+      
+      const recentViolations = violations.filter(violation => {
+        const violationDate = new Date(`${violation.date}T${violation.time}`);
+        return violationDate > oneHourAgo;
+      });
+      
+      setHourlyViolations(recentViolations.length);
+    }, 60000);
+
+    return () => {
+      clearInterval(detectionInterval);
+      clearInterval(cleanupInterval);
+    };
+  }, [addViolation, lastViolationId, violations]);
 
   useEffect(() => {
     if (!isFeedInitialized) return;
@@ -79,7 +110,7 @@ export const DetectionProvider = ({ children }) => {
     if (showAlert) {
       timer = setTimeout(() => {
         setShowAlert(false);
-      }, 5000); // Match Snackbar autoHideDuration
+      }, 5000);
     }
     return () => clearTimeout(timer);
   }, [showAlert]);
@@ -91,7 +122,8 @@ export const DetectionProvider = ({ children }) => {
       isFeedInitialized,
       setIsFeedInitialized,
       showAlert,
-      setShowAlert
+      setShowAlert,
+      hourlyViolations
     }}>
       {children}
     </DetectionContext.Provider>

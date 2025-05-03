@@ -11,19 +11,11 @@ import {
   Select,
   MenuItem,
   DialogActions,
-  IconButton,
   TextField,
-  FormLabel,
-  RadioGroup,
-  Radio,
-  FormControlLabel,
-  FormGroup,
-  Checkbox
 } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { 
   GridToolbarContainer,
-  GridToolbarFilterButton,
   GridToolbarDensitySelector,
   GridToolbarExport
 } from '@mui/x-data-grid';
@@ -31,14 +23,10 @@ import { tokens } from "../../theme";
 import Header from "../../components/Header";
 import AddIcon from '@mui/icons-material/Add';
 import { getStudentRecords, addStudentRecord, updateStudentRecord, deleteStudentRecord } from '../../services/studentRecordsService.ts';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { addUserLog } from '../../services/userLogsService.ts';
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import pdfMake from 'pdfmake/build/pdfmake';
 import vfs from 'pdfmake/build/vfs_fonts.js';
-import html2canvas from "html2canvas";
-import CustomDatePicker from "../../components/CustomDatePicker";
 
 // Initialize pdfMake
 pdfMake.vfs = vfs;
@@ -549,7 +537,15 @@ const ViolationHandling = () => {
     try {
       const user = JSON.parse(sessionStorage.getItem("user"));
       const generatedBy = [user.first_name, user.last_name].filter(Boolean).join(' ');
-
+      
+      // Log the report generation
+      await addUserLog({
+        log_id: user.log_id,
+        username: user.username,
+        action: "Generated Violations Report",
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().split(' ')[0]
+      });
       let filteredRecords = [...records];
       
       // Apply department filter
@@ -1748,102 +1744,68 @@ const ViolationHandling = () => {
         >
           Generate Violation Report
         </DialogTitle>
+
         <DialogContent sx={{ padding: '24px' }}>
           <Box
             component="form"
             sx={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: 3,
-              '& .form-section': {
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2
-              }
+              flexDirection: 'row', // <--- horizontal alignment
+              gap: 4,
+              flexWrap: 'wrap' // allows wrapping if screen is small
             }}
           >
             {/* Department Selection */}
-            <div className="form-section">
+            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: '200px', gap: 1 }}>
               <Typography
                 sx={{ 
                   color: colors.grey[100],
                   fontWeight: 'bold',
-                  fontSize: '1rem',
-                  marginBottom: '8px'
+                  paddingTop: '8px',
+                  fontSize: '1rem'
                 }}
               >
                 Select Department
               </Typography>
-              <Box
+              <Select
+                value={reportConfig.department}
+                onChange={(e) => setReportConfig(prev => ({
+                  ...prev,
+                  department: e.target.value
+                }))}
+                fullWidth
                 sx={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-                  gap: 2
+                  backgroundColor: colors.grey[800],
+                  color: colors.grey[100],
+                  '& .MuiSelect-icon': { color: colors.grey[100] }
                 }}
               >
-                <Button
-                  onClick={() => setReportConfig(prev => ({
-                    ...prev,
-                    department: 'all'
-                  }))}
-                  sx={{
-                    backgroundColor: reportConfig.department === 'all' ? '#ffd700' : colors.grey[800],
-                    color: reportConfig.department === 'all' ? colors.grey[900] : colors.grey[100],
-                    padding: '12px',
-                    '&:hover': {
-                      backgroundColor: reportConfig.department === 'all' ? '#e6c200' : colors.grey[700]
-                    }
-                  }}
-                >
-                  All Departments
-                </Button>
+                <MenuItem value="all">All Departments</MenuItem>
                 {departments.map(dept => (
-                  <Button
-                    key={dept}
-                    onClick={() => setReportConfig(prev => ({
-                      ...prev,
-                      department: dept
-                    }))}
-                    sx={{
-                      backgroundColor: reportConfig.department === dept ? '#ffd700' : colors.grey[800],
-                      color: reportConfig.department === dept ? colors.grey[900] : colors.grey[100],
-                      padding: '12px',
-                      '&:hover': {
-                        backgroundColor: reportConfig.department === dept ? '#e6c200' : colors.grey[700]
-                      }
-                    }}
-                  >
+                  <MenuItem key={dept} value={dept}>
                     {dept}
-                  </Button>
+                  </MenuItem>
                 ))}
-              </Box>
-            </div>
+              </Select>
+            </Box>
 
             {/* Date Range Selection */}
-            <div className="form-section">
+            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 2, gap: 1, minWidth: '300px' }}>
               <Typography
                 sx={{ 
                   color: colors.grey[100],
                   fontWeight: 'bold',
-                  fontSize: '1rem',
-                  marginBottom: '8px'
+                  fontSize: '1rem'
                 }}
               >
                 Select Date Range
               </Typography>
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 2,
-                  alignItems: 'center'
-                }}
-              >
-                <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography
                     sx={{ 
                       color: colors.grey[100],
-                      fontSize: '0.875rem',
-                      marginBottom: '4px'
+                      fontSize: '0.875rem'
                     }}
                   >
                     Start Date
@@ -1871,12 +1833,11 @@ const ViolationHandling = () => {
                     }}
                   />
                 </Box>
-                <Box sx={{ flex: 1 }}>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Typography
                     sx={{ 
                       color: colors.grey[100],
-                      fontSize: '0.875rem',
-                      marginBottom: '4px'
+                      fontSize: '0.875rem'
                     }}
                   >
                     End Date
@@ -1907,9 +1868,10 @@ const ViolationHandling = () => {
                   />
                 </Box>
               </Box>
-            </div>
+            </Box>
           </Box>
         </DialogContent>
+
         <DialogActions 
           sx={{ 
             padding: '16px 24px',
@@ -1945,7 +1907,7 @@ const ViolationHandling = () => {
             disabled={!reportConfig.startDate || !reportConfig.endDate || !reportConfig.department}
             sx={{
               backgroundColor: '#ffd700',
-              color: colors.grey[900],
+              color: colors.grey[100],
               fontWeight: 'bold',
               '&:hover': {
                 backgroundColor: '#e6c200'
