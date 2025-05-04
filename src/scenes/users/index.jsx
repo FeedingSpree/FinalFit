@@ -205,6 +205,14 @@ const Users = () => {
         await deleteUser(userToDelete.id);
         const updatedUsers = await getUsers();
         setUsers(updatedUsers);
+        const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+        await addUserLog({
+          log_id: sessionUser.log_id,
+          username: sessionUser.username,
+          action: `Deleted user ${userToDelete.username}`,
+          date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().split(' ')[0]
+        });
         handleDeleteCancel();
         setDeleteSnackbarOpen(true); // Show success Snackbar
       } catch (error) {
@@ -213,6 +221,7 @@ const Users = () => {
       }
     }
   };
+
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
@@ -347,7 +356,7 @@ const Users = () => {
         await addUserLog({
           log_id: sessionUser.log_id,
           username: sessionUser.username,
-          action: "Added User",
+          action: `Added User ${formData.username}`,
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
@@ -1032,6 +1041,7 @@ const Users = () => {
             variant="contained"
             color="error"
             disabled={confirmText.toLowerCase() !== 'confirm'}
+            wews
           >
             Delete User
           </Button>

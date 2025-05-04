@@ -42,7 +42,44 @@ const validateDate = (dateStr) => {
          date.getFullYear() === year;
 };
 
-const AuditLogs = () => {
+const checkAndUpdateExpiredPolicies = async (managements) => {
+  const today = new Date().toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric'
+  }).replace(/\//g, '-');
+
+  for (const policy of managements) {
+    if (policy.status === 'Allowed' && policy.end_date === today) {
+      try {
+        const updatedPolicy = {
+          ...policy,
+          status: 'Not Allowed',
+          start_date: '',
+          end_date: ''
+        };
+
+        await updateManagement(policy.id, updatedPolicy);
+        
+        // Log the automatic status change
+        const sessionUser = JSON.parse(sessionStorage.getItem('user'));
+        if (sessionUser) {
+          await addUserLog({
+            log_id: sessionUser.log_id,
+            username: sessionUser.username,
+            action: "Auto-Activated Violation (Policy Expired)",
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toTimeString().split(' ')[0]
+          });
+        }
+      } catch (error) {
+        console.error("Error updating expired policy:", error);
+      }
+    }
+  }
+};
+
+const Policies = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
 
@@ -60,9 +97,20 @@ const AuditLogs = () => {
     fetchManagements();
   }, []);
 
+  useEffect(() => {
+    // Check every hour for expired policies
+    const intervalId = setInterval(() => {
+      fetchManagements();
+    }, 3600000); // 1 hour in milliseconds
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   const fetchManagements = async () => {
     const data = await getManagements();
-    setManagements(data);
+    await checkAndUpdateExpiredPolicies(data);
+    const updatedData = await getManagements(); // Fetch again to get latest state
+    setManagements(updatedData);
   };
 
   const handleOpenModal = (item = null) => {
@@ -574,4 +622,4 @@ const dataGridStyles = (colors) => ({
   },
 });
 
-export default AuditLogs;
+export default Policies;

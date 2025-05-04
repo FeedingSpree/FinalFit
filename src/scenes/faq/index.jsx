@@ -234,6 +234,46 @@ const FAQ = () => {
               variant="h5" 
               fontWeight="600"
             >
+              What does the page "Policies" do?
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={detailsStyle}>
+            <Typography color={colors.grey[100]} lineHeight="1.6">
+              The Policies page allows administrators to temporarily disable specific dress code violation detections for defined periods. Here's how it works:
+            </Typography>
+            <Box sx={{ mt: 2, ml: 2 }}>
+              <Typography color={colors.grey[100]} component="div">
+                • When you set a start date, the system will stop detecting the selected violation type from that date
+              </Typography>
+              <Typography color={colors.grey[100]} component="div">
+                • The end date determines when the system will resume detecting that violation
+              </Typography>
+              <Typography 
+                color={colors.grey[100]} 
+                sx={{ 
+                  mt: 2,
+                  fontSize: "0.9em",
+                  fontStyle: "italic",
+                  borderLeft: `2px solid ${colors.grey[400]}`,
+                  pl: 2
+                }}
+              >
+                For example: If you want to allow caps during a special event from June 1-3, set June 1 as the start date (violation detection paused) and June 4 as the end date (violation detection resumes).
+              </Typography>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion sx={accordionStyle}>
+          <AccordionSummary 
+            expandIcon={<ExpandMoreIcon sx={expandIconStyle} />}
+            sx={summaryStyle}
+          >
+            <Typography 
+              color={colors.grey[100]} 
+              variant="h5" 
+              fontWeight="600"
+            >
               How can I add an event in the calendar?
             </Typography>
           </AccordionSummary>
