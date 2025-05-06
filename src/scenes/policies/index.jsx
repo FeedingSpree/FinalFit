@@ -42,7 +42,7 @@ const validateDate = (dateStr) => {
          date.getFullYear() === year;
 };
 
-const checkAndUpdateExpiredPolicies = async (managements) => {
+  const checkAndUpdateExpiredPolicies = async (managements) => {
   const today = new Date().toLocaleDateString('en-US', {
     month: '2-digit',
     day: '2-digit',
@@ -394,37 +394,44 @@ const Policies = () => {
               >
                 Start Date
               </Typography>
-              <OutlinedInput
-                className="form-input"
-                name="start_date"
-                placeholder="MM-DD-YYYY"
-                value={currentManagement?.start_date || ''}
-                onChange={handleChange}
-                disabled={currentManagement?.status === 'Not Allowed'}
-                error={!!formErrors.start_date}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.start_date ? '#f44336' : colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.start_date ? '#f44336' : colors.grey[100],
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.start_date ? '#f44336' : colors.grey[100],
-                  },
-                  '&::placeholder': {
-                    color: colors.grey[500],
-                    opacity: 1,
-                  },
-                }}
-              />
-              {formErrors.start_date && (
-                <Typography color="error" variant="caption">
-                  {formErrors.start_date}
-                </Typography>
-              )}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <OutlinedInput
+                  className="form-input"
+                  name="start_date"
+                  placeholder="MM-DD-YYYY"
+                  value={currentManagement?.start_date || ''}
+                  onChange={handleChange}
+                  disabled={currentManagement?.status === 'Not Allowed'}
+                  error={!!formErrors.start_date}
+                  sx={{
+                    color: colors.grey[100],
+                    width: '100%',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.start_date ? '#f44336' : colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.start_date ? '#f44336' : colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.start_date ? '#f44336' : colors.grey[100],
+                    },
+                    '&::placeholder': {
+                      color: colors.grey[500],
+                      opacity: 1,
+                    },
+                  }}
+                />
+                {formErrors.start_date && (
+                  <Typography 
+                    color="error" 
+                    variant="caption" 
+                    sx={{ pl: 1 }}
+                  >
+                    {formErrors.start_date}
+                  </Typography>
+                )}
+              </Box>
             </div>
 
             <div className="form-row">
@@ -437,37 +444,44 @@ const Policies = () => {
               >
                 End Date
               </Typography>
-              <OutlinedInput
-                className="form-input"
-                name="end_date"
-                placeholder="MM-DD-YYYY"
-                value={currentManagement?.end_date || ''}
-                onChange={handleChange}
-                disabled={currentManagement?.status === 'Not Allowed'}
-                error={!!formErrors.end_date}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.end_date ? '#f44336' : colors.grey[400],
-                    borderWidth: 1,
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.end_date ? '#f44336' : colors.grey[100],
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    borderColor: formErrors.end_date ? '#f44336' : colors.grey[100],
-                  },
-                  '&::placeholder': {
-                    color: colors.grey[500],
-                    opacity: 1,
-                  },
-                }}
-              />
-              {formErrors.end_date && (
-                <Typography color="error" variant="caption">
-                  {formErrors.end_date}
-                </Typography>
-              )}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <OutlinedInput
+                  className="form-input"
+                  name="end_date"
+                  placeholder="MM-DD-YYYY"
+                  value={currentManagement?.end_date || ''}
+                  onChange={handleChange}
+                  disabled={currentManagement?.status === 'Not Allowed'}
+                  error={!!formErrors.end_date}
+                  sx={{
+                    color: colors.grey[100],
+                    width: '100%',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.end_date ? '#f44336' : colors.grey[400],
+                      borderWidth: 1,
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.end_date ? '#f44336' : colors.grey[100],
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: formErrors.end_date ? '#f44336' : colors.grey[100],
+                    },
+                    '&::placeholder': {
+                      color: colors.grey[500],
+                      opacity: 1,
+                    },
+                  }}
+                />
+                {formErrors.end_date && (
+                  <Typography 
+                    color="error" 
+                    variant="caption" 
+                    sx={{ pl: 1 }}
+                  >
+                    {formErrors.end_date}
+                  </Typography>
+                )}
+              </Box>
             </div>
           </Box>
         </DialogContent>
