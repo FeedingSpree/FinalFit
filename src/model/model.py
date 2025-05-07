@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # File paths
 model_path = r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\yolov11m.pt"
 video_path = r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\recording_1.mp4"
+rtsp_url = "rtsp://admin:Test1234@192.168.100.139:554/onvif1"  # RTSP URL for camera
 
 # Validate file existence
 if not os.path.exists(model_path):
@@ -63,8 +64,8 @@ try:
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = False
 
-    # Initialize video capture
-    logger.info("Opening video capture...")
+    # Initialize video capture for local file
+    logger.info("Opening video capture for local file...")
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
@@ -83,6 +84,19 @@ try:
     model.max_det = 50
 
     logger.info("Video capture initialized successfully")
+
+    # Initialize RTSP video capture
+    logger.info("Testing RTSP connection...")
+    rtsp_cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+    
+    # Check if RTSP connection is successful
+    if rtsp_cap.isOpened():
+        logger.info("RTSP connection successful")
+        # Configure RTSP settings
+        rtsp_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+        rtsp_cap.release()  # Release it for now, will be reopened when needed
+    else:
+        logger.warning(f"Could not open RTSP stream at {rtsp_url}. RTSP endpoint may not be functional.")
 
 except Exception as e:
     logger.error(f"Initialization error: {str(e)}")
@@ -158,93 +172,94 @@ class FrameBuffer:
         self.last_check_time = time.time()
         self.check_interval = 10  # 10 seconds
 
-# Modify the generate_frames function for better performance
+# Modified process_frame function to be reused for both streams
+def process_frame(frame, current_time, frame_buffer, device, model):
+    try:
+        # Run detection with optimized settings
+        with torch.inference_mode():
+            results = model.predict(
+                source=frame,
+                conf=0.5,
+                save=False,
+                device=device,
+                verbose=False,
+                stream=True  # Enable streaming mode
+            )
+            
+            result = next(results)
+            if result.boxes:
+                # Process on GPU to avoid CPU-GPU transfers
+                boxes = result.boxes
+                mask = torch.ones(len(boxes), dtype=torch.bool, device=device)
+                
+                for i, box in enumerate(boxes):
+                    cls = int(box.cls[0])
+                    conf = float(box.conf[0])
+                    
+                    if conf > 0.5 and is_violation_allowed(cls, frame_buffer.allowed_violations):
+                        mask[i] = False
+                        continue
+                    
+                    # Process detections without moving tensors to CPU
+                    if cls in VIOLATIONS or cls in NON_VIOLATIONS:
+                        with frame_buffer.lock:
+                            if time.time() - frame_buffer.last_detection_time >= frame_buffer.detection_cooldown:
+                                frame_buffer.last_detection_time = time.time()
+                                # Process detection in separate thread
+                                Thread(target=handle_detection, args=(cls, current_time)).start()
+                
+                # Filter boxes in one operation on GPU
+                if mask.any():
+                    result.boxes = result.boxes[mask]
+                else:
+                    result.boxes.data = torch.empty((0, 6), device=device)
+            
+            return result.plot()
+    except Exception as e:
+        logger.error(f"Error processing frame: {e}")
+        return frame
+
+def handle_detection(cls, current_time):
+    try:
+        if cls in VIOLATIONS:
+            violation = VIOLATIONS[cls]
+            detection_data = {
+                "building_number": 1,
+                "camera_number": 1,
+                "date": current_time.strftime("%Y-%m-%d"),
+                "floor_number": 1,
+                "time": current_time.strftime("%H:%M:%S"),
+                "violation": violation,
+                "violation_id": generate_violation_id()
+            }
+            app.latest_detection = {
+                "type": "violation",
+                "data": detection_data
+            }
+            logger.info(f"Violation detected: {violation}")
+        elif cls in NON_VIOLATIONS:
+            uniform_type = NON_VIOLATIONS[cls]
+            detection_data = {
+                "building_number": 1,
+                "camera_number": 1,
+                "date": current_time.strftime("%Y-%m-%d"),
+                "floor_number": 1,
+                "time": current_time.strftime("%H:%M:%S"),
+                "detection": uniform_type,
+                "detection_id": generate_violation_id()
+            }
+            app.latest_detection = {
+                "type": "uniform",
+                "data": detection_data
+            }
+            logger.info(f"Uniform detected: {uniform_type}")
+    except Exception as e:
+        logger.error(f"Error handling detection: {e}")
+
+# Modified generate_frames for the local video file
 def generate_frames():
     frame_buffer = FrameBuffer()
     
-    def process_frame(frame, current_time):
-        try:
-            # Run detection with optimized settings
-            with torch.inference_mode():
-                results = model.predict(
-                    source=frame,
-                    conf=0.5,
-                    save=False,
-                    device=device,
-                    verbose=False,
-                    stream=True  # Enable streaming mode
-                )
-                
-                result = next(results)
-                if result.boxes:
-                    # Process on GPU to avoid CPU-GPU transfers
-                    boxes = result.boxes
-                    mask = torch.ones(len(boxes), dtype=torch.bool, device=device)
-                    
-                    for i, box in enumerate(boxes):
-                        cls = int(box.cls[0])
-                        conf = float(box.conf[0])
-                        
-                        if conf > 0.5 and is_violation_allowed(cls, frame_buffer.allowed_violations):
-                            mask[i] = False
-                            continue
-                        
-                        # Process detections without moving tensors to CPU
-                        if cls in VIOLATIONS or cls in NON_VIOLATIONS:
-                            with frame_buffer.lock:
-                                if time.time() - frame_buffer.last_detection_time >= frame_buffer.detection_cooldown:
-                                    frame_buffer.last_detection_time = time.time()
-                                    # Process detection in separate thread
-                                    Thread(target=handle_detection, args=(cls, current_time)).start()
-                    
-                    # Filter boxes in one operation on GPU
-                    if mask.any():
-                        result.boxes = result.boxes[mask]
-                    else:
-                        result.boxes.data = torch.empty((0, 6), device=device)
-                
-                return result.plot()
-        except Exception as e:
-            logger.error(f"Error processing frame: {e}")
-            return frame
-
-    def handle_detection(cls, current_time):
-        try:
-            if cls in VIOLATIONS:
-                violation = VIOLATIONS[cls]
-                detection_data = {
-                    "building_number": 1,
-                    "camera_number": 1,
-                    "date": current_time.strftime("%Y-%m-%d"),
-                    "floor_number": 1,
-                    "time": current_time.strftime("%H:%M:%S"),
-                    "violation": violation,
-                    "violation_id": generate_violation_id()
-                }
-                app.latest_detection = {
-                    "type": "violation",
-                    "data": detection_data
-                }
-                logger.info(f"Violation detected: {violation}")
-            elif cls in NON_VIOLATIONS:
-                uniform_type = NON_VIOLATIONS[cls]
-                detection_data = {
-                    "building_number": 1,
-                    "camera_number": 1,
-                    "date": current_time.strftime("%Y-%m-%d"),
-                    "floor_number": 1,
-                    "time": current_time.strftime("%H:%M:%S"),
-                    "detection": uniform_type,
-                    "detection_id": generate_violation_id()
-                }
-                app.latest_detection = {
-                    "type": "uniform",
-                    "data": detection_data
-                }
-                logger.info(f"Uniform detected: {uniform_type}")
-        except Exception as e:
-            logger.error(f"Error handling detection: {e}")
-
     while True:
         try:
             current_time = datetime.now()
@@ -262,7 +277,7 @@ def generate_frames():
             frame = cv2.resize(frame, (854, 480))
             
             # Process frame
-            annotated_frame = process_frame(frame, current_time)
+            annotated_frame = process_frame(frame, current_time, frame_buffer, device, model)
             
             # Encode frame
             _, buffer = cv2.imencode('.jpg', annotated_frame)
@@ -274,6 +289,88 @@ def generate_frames():
         except Exception as e:
             logger.error(f"Error in frame generation: {str(e)}")
             continue
+
+# New function to generate frames from RTSP stream
+def generate_rtsp_frames():
+    frame_buffer = FrameBuffer()
+    rtsp_cap = None
+    
+    try:
+        # Initialize RTSP capture
+        rtsp_cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        
+        # Configure RTSP settings for better performance
+        rtsp_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+        
+        if not rtsp_cap.isOpened():
+            logger.error(f"Could not open RTSP stream at {rtsp_url}")
+            raise Exception("Could not open RTSP stream")
+        
+        logger.info("RTSP stream opened successfully")
+        
+        while True:
+            try:
+                current_time = datetime.now()
+                
+                # Update allowed violations in separate thread
+                if time.time() - frame_buffer.last_check_time > frame_buffer.check_interval:
+                    Thread(target=lambda: setattr(frame_buffer, 'allowed_violations', get_allowed_violations())).start()
+                    frame_buffer.last_check_time = time.time()
+                
+                # Read frame from RTSP stream
+                success, frame = rtsp_cap.read()
+                
+                if not success:
+                    logger.warning("Failed to read frame from RTSP stream, reconnecting...")
+                    # Try to reconnect
+                    rtsp_cap.release()
+                    time.sleep(1)  # Wait a bit before reconnecting
+                    rtsp_cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+                    continue
+                
+                # Resize frame for consistency
+                frame = cv2.resize(frame, (854, 480))
+                
+                # Process frame with model
+                annotated_frame = process_frame(frame, current_time, frame_buffer, device, model)
+                
+                # Encode frame
+                _, buffer = cv2.imencode('.jpg', annotated_frame)
+                frame_bytes = buffer.tobytes()
+                
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                
+            except Exception as e:
+                logger.error(f"Error in RTSP frame generation: {str(e)}")
+                time.sleep(0.5)  # Add a small delay before trying again
+                continue
+            
+    except Exception as e:
+        logger.error(f"Error initializing RTSP stream: {str(e)}")
+        # Return an error message as a frame
+        error_img = create_error_image("RTSP stream unavailable")
+        _, buffer = cv2.imencode('.jpg', error_img)
+        frame_bytes = buffer.tobytes()
+        
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    
+    finally:
+        # Ensure we release the capture when the generator is done
+        if rtsp_cap is not None and rtsp_cap.isOpened():
+            rtsp_cap.release()
+
+# Helper function to create an error image
+def create_error_image(message):
+    # Create a black image
+    img = np.zeros((480, 854, 3), np.uint8)
+    
+    # Add error message
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(img, message, (100, 240), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+    
+    return img
 
 @app.get("/live-feed")
 async def live_feed():
@@ -295,6 +392,25 @@ async def video_stream():
         )
     except Exception as e:
         logger.error(f"Error in video_stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# New endpoint for RTSP stream
+@app.get("/api/rtsp-stream")
+async def rtsp_stream():
+    try:
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
+        }
+        return StreamingResponse(
+            generate_rtsp_frames(),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers=headers
+        )
+    except Exception as e:
+        logger.error(f"Error in rtsp_stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/status")

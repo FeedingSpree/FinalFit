@@ -15,84 +15,39 @@ import {
   IconButton,
   Snackbar,
   Alert,
-  Button
+  Button,
+  Switch,
+  FormControlLabel
 } from "@mui/material";
 import RefreshIcon from '@mui/icons-material/Refresh';
+import VideoSettingsIcon from '@mui/icons-material/VideoSettings';
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
 import { useDetection } from "../../context/DetectionContext";
 
-const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, videoSource, isRTSP }) => {
+const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, useRtsp }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
   const playerRef = useRef(null);
-  const retryTimerRef = useRef(null);
   const { setIsFeedInitialized } = useDetection();
 
-  // Clear retry timer on unmount
-  useEffect(() => {
-    return () => {
-      if (retryTimerRef.current) {
-        clearInterval(retryTimerRef.current);
-      }
-    };
-  }, []);
+  // Determine the correct stream URL based on the useRtsp flag
+  const streamUrl = useRtsp 
+    ? "http://localhost:5000/api/rtsp-stream"  // RTSP stream endpoint
+    : "http://localhost:5000/api/stream";      // Regular stream endpoint
 
-  // Reset connection when video source changes
   useEffect(() => {
+    // Reset loading state when stream URL changes
     setIsLoading(true);
     setError(null);
-    setRetryCount(0);
     
-    if (retryTimerRef.current) {
-      clearInterval(retryTimerRef.current);
-    }
-
-    if (isRTSP) {
-      initializeRTSPStream();
-    }
-
+    // Reset feed initialization when component unmounts
     return () => {
       if (setIsFeedInitialized) {
         setIsFeedInitialized(false);
       }
     };
-  }, [setIsFeedInitialized, videoSource]);
-
-  const initializeRTSPStream = () => {
-    if (!isRTSP) return;
-
-    const attemptConnection = () => {
-      if (playerRef.current) {
-        console.log(`Attempting RTSP connection (attempt ${retryCount + 1})...`);
-        playerRef.current.src = `${videoSource}?timestamp=${new Date().getTime()}`;
-        playerRef.current.load();
-        setRetryCount(prev => prev + 1);
-      }
-    };
-
-    // Initial attempt
-    attemptConnection();
-
-    // Set up continuous retry mechanism
-    retryTimerRef.current = setInterval(() => {
-      if (isLoading || error) {
-        attemptConnection();
-      } else {
-        clearInterval(retryTimerRef.current);
-      }
-    }, 5000); // Retry every 5 seconds
-  };
-
-  const handleStreamError = () => {
-    console.error(`RTSP stream error (attempt ${retryCount})`);
-    setError("Failed to load video feed. Retrying...");
-    setIsLoading(false);
-    if (setIsFeedInitialized) {
-      setIsFeedInitialized(false);
-    }
-  };
+  }, [setIsFeedInitialized, useRtsp]); // Add useRtsp as dependency
 
   return (
     <Box
@@ -110,8 +65,8 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, vide
     >
       <Box
         sx={{
-          width: "100%",
-          height: "100%",
+          width: "1550px",
+          height: "835px",
           borderRadius: '12px',
           overflow: 'hidden',
           backgroundColor: colors.primary[400],
@@ -120,57 +75,35 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, vide
           alignItems: 'center',
         }}
       >
-        {isRTSP ? (
-          <video
-            ref={playerRef}
-            autoPlay
-            playsInline
-            muted
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              display: isLoading ? 'none' : 'block'
-            }}
-            onLoadedData={() => {
-              console.log('RTSP stream connected successfully');
-              setIsLoading(false);
-              setError(null);
-              setRetryCount(0);
-              if (setIsFeedInitialized) {
-                setIsFeedInitialized(true);
-              }
-              if (retryTimerRef.current) {
-                clearInterval(retryTimerRef.current);
-              }
-            }}
-            onError={handleStreamError}
-          />
-        ) : (
-          <Box
-            ref={playerRef}
-            component="img"
-            src={videoSource}
-            sx={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              objectFit: 'contain',
-              objectPosition: 'center',
-              display: 'block',
-              opacity: isLoading ? 0 : 1,
-              transition: 'opacity 0.3s'
-            }}
-            onLoad={() => {
-              setIsLoading(false);
-              setError(null);
-              if (setIsFeedInitialized) {
-                setIsFeedInitialized(true);
-              }
-            }}
-            onError={handleStreamError}
-          />
-        )}
+        <Box
+          ref={playerRef}
+          component="img"
+          src={streamUrl}
+          sx={{
+            width: '100%',
+            height: '100%',
+            border: 'none',
+            objectFit: 'fill',
+            objectPosition: 'center',
+            display: 'block',
+            opacity: isLoading ? 0 : 1,
+            transition: 'opacity 0.3s'
+          }}
+          onLoad={() => {
+            setIsLoading(false);
+            if (setIsFeedInitialized) {
+              setIsFeedInitialized(true);
+            }
+          }}
+          onError={(e) => {
+            console.error("Error loading feed:", e);
+            setError("Failed to load video feed. Retrying...");
+            setIsLoading(false);
+            if (setIsFeedInitialized) {
+              setIsFeedInitialized(false);
+            }
+          }}
+        />
         {isLoading && (
           <Box
             sx={{
@@ -182,7 +115,7 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, vide
               zIndex: 2
             }}
           >
-            {isRTSP ? `Connecting to RTSP stream (attempt ${retryCount})...` : 'Loading...'}
+            {'Loading...'}
           </Box>
         )}
         {error && (
@@ -197,7 +130,7 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, vide
               zIndex: 2
             }}
           >
-            {`${error} (attempt ${retryCount})`}
+            {error}
           </Box>
         )}
       </Box>
@@ -212,26 +145,15 @@ const LiveFeed = () => {
   const [selectedBuilding, setSelectedBuilding] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const { violations, setShowAlert, hourlyViolations } = useDetection();  // Add hourlyViolations
+  const { violations, setShowAlert, hourlyViolations } = useDetection();
   const [showAlert, setShowAlertState] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [videoSource, setVideoSource] = useState("http://localhost:5000/api/stream");
-  const [isRTSP, setIsRTSP] = useState(false);
+  const [useRtsp, setUseRtsp] = useState(false); // New state for RTSP toggle
 
-  const toggleVideoSource = () => {
-    // Reset any existing connections first
-    setVideoSource('');
-    
-    // Small delay to ensure clean transition
-    setTimeout(() => {
-      if (isRTSP) {
-        setVideoSource("http://localhost:5000/api/stream");
-      } else {
-        setVideoSource("RTSP://admin:Test1234@192.168.100.139:554/onvif1");
-      }
-      setIsRTSP(!isRTSP);
-    }, 100);
+  // Handle toggle between regular and RTSP stream
+  const handleStreamToggle = () => {
+    setUseRtsp(!useRtsp);
   };
 
   useEffect(() => {
@@ -302,8 +224,7 @@ const LiveFeed = () => {
                   buildingNumber={selectedBuilding || "1"}
                   floorNumber={selectedFloor || "1"}
                   cameraNumber={i + 1}
-                  videoSource={videoSource}
-                  isRTSP={isRTSP}
+                  useRtsp={useRtsp}
                 />
               </Box>
             </Box>
@@ -316,32 +237,19 @@ const LiveFeed = () => {
 
   return (
     <Box m="20px">
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Box display="flex" justifyContent="space-between" alignItems="center">
         <Header title="Live Feed"/>
-        <Button
-          variant="contained"
-          onClick={toggleVideoSource}
-          sx={{
-            backgroundColor: isRTSP ? colors.redAccent[500] : colors.greenAccent[500],
-            color: colors.grey[100],
-            fontWeight: "bold",
-            '&:hover': {
-              backgroundColor: isRTSP ? colors.redAccent[600] : colors.greenAccent[600],
-            },
-          }}
-        >
-          {isRTSP ? 'Switch to Local Feed' : 'RTSP Connection'}
-        </Button>
       </Box>
+      
       <Grid 
         container 
         spacing={2} 
-        justifyContent="center" // Center horizontally
-        alignItems="center"     // Center vertically if height permits
+        justifyContent="center"
+        alignItems="center"
       >
         {renderVideoFeeds()}
       </Grid>
-
+      
       <Box mt={3}>
         <Paper
           sx={{
@@ -438,6 +346,33 @@ const LiveFeed = () => {
           </DialogContent>
         </Dialog>
       </Box>
+
+      <FormControlLabel
+        control={
+          <Switch
+            checked={useRtsp}
+            onChange={handleStreamToggle}
+            color="primary"
+          />
+        }
+        label={
+          <Box display="flex" alignItems="center" gap={1}>
+            <VideoSettingsIcon />
+            <Typography variant="body2">{useRtsp ? "RTSP Camera" : "Local Feed"}</Typography>
+          </Box>
+        }
+        sx={{ 
+          position: 'absolute',
+          top: '50px',
+          left: '1450px',
+          margin: 0,
+          backdropFilter: 'blur(4px)',
+          '& .MuiTypography-root': {
+            color: '#000',
+            fontSize: '0.875rem'
+          },
+        }}
+      />
 
       <Snackbar
         open={showAlert}
