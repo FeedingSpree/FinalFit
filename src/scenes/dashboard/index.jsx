@@ -428,14 +428,14 @@ const Dashboard = () => {
                           { text: violations.length, style: 'tableCell', alignment: 'right' }
                         ],
                         [
-                          { text: 'Total Detections', style: 'tableHeader' },
+                          { text: 'Total Uniforms', style: 'tableHeader' },
                           { text: detections.length, style: 'tableCell', alignment: 'right' }
                         ],
                         [
-                          { text: 'Compliance Rate', style: 'tableHeader' },
+                          { text: 'Average Violations per Day', style: 'tableHeader' },
                           { 
-                            text: `${((detections.length - violations.length) / detections.length * 100).toFixed(1)}%`, 
-                            style: 'tableCell',
+                            text: calculateAverageViolationsPerDay(), 
+                            style: 'tableCell', 
                             alignment: 'right'
                           }
                         ]
@@ -463,7 +463,7 @@ const Dashboard = () => {
                         ],
                         [
                           { text: 'Peak Violation Day', style: 'tableHeader' },
-                          { text: formatData()[0]?.name || 'N/A', style: 'tableCell', alignment: 'right' }
+                          { text: findPeakViolationDay(), style: 'tableCell', alignment: 'right' }
                         ]
                       ]
                     },
@@ -680,6 +680,52 @@ const Dashboard = () => {
     return Object.values(grouped).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
+  };
+  // Add this helper function to calculate average violations per day
+  const calculateAverageViolationsPerDay = () => {
+    try {
+      // Get start and end dates from the date range
+      const start = new Date(dateRange.startDate);
+      const end = new Date(dateRange.endDate);
+      
+      // Calculate total days in the range (inclusive)
+      const diffTime = Math.abs(end - start);
+      const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      
+      // Count violations within the date range
+      const totalViolations = violations.filter(v => {
+        const violationDate = new Date(v.date);
+        return violationDate >= start && violationDate <= end;
+      }).length;
+
+      // Calculate and format average
+      return (totalViolations / totalDays).toFixed(0);
+    } catch (error) {
+      console.error("Error calculating average violations:", error);
+      return "0.0";
+    }
+  };
+  // Add this function after the formatData function
+  const findPeakViolationDay = () => {
+    const data = formatData();
+    if (!data || data.length === 0) return 'N/A';
+
+    // Calculate total violations for each day
+    const withTotals = data.map(day => ({
+      ...day,
+      total: day.cap + day.shorts + day.no_sleeves
+    }));
+
+    // Find the day with maximum violations
+    const peakDay = withTotals.reduce((max, current) => {
+      return current.total > max.total ? current : max;
+    }, withTotals[0]);
+
+    // If no violations were found, return N/A
+    if (peakDay.total === 0) return 'N/A';
+
+    // Return the date and total violations
+    return `${peakDay.name}`;
   };
 
   // PIE CHART
