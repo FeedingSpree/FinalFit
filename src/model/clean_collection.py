@@ -7,10 +7,12 @@ firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
-#replace "violationlogs" with the collection name you want to delete documents from
-def delete_all_documents(nonviolationlogs):
+def delete_documents(nonviolationlogs, limit):
+    """
+    Delete up to `limit` number of documents from the specified Firestore collection.
+    """
     collection_ref = db.collection(nonviolationlogs)
-    docs = collection_ref.stream()
+    docs = collection_ref.limit(limit).stream()
 
     deleted = 0
     for doc in docs:
@@ -21,4 +23,4 @@ def delete_all_documents(nonviolationlogs):
     print(f"Deleted {deleted} documents from '{nonviolationlogs}' collection.")
 
 # Example usage:
-delete_all_documents("nonviolationlogs")  # Replace with your collection name
+delete_documents("nonviolationlogs", 324)  # Delete 10 documents from "nonviolationlogs"

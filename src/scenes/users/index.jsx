@@ -12,9 +12,7 @@ import { addUserLog } from "../../services/userLogsService.ts"; // Add import fo
 import { color } from "d3-color";
 import { 
   GridToolbarContainer,
-  GridToolbarFilterButton,
-  GridToolbarDensitySelector,
-  GridToolbarExport
+  GridToolbarDensitySelector
 } from '@mui/x-data-grid';
 
 const CustomToolbar = ({ searchText, onSearchChange }) => {
@@ -56,9 +54,7 @@ const CustomToolbar = ({ searchText, onSearchChange }) => {
             },
           }}
         />
-        <GridToolbarFilterButton />
         <GridToolbarDensitySelector />
-        <GridToolbarExport />
       </Box>
     </GridToolbarContainer>
   );
@@ -407,7 +403,10 @@ const Users = () => {
               borderRadius: '4px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              width: '100px', // Set fixed width
+              minWidth: '100px', // Ensure minimum width
+              height: '30px', // Set fixed height
             }}
           >
             <Typography sx={{ 

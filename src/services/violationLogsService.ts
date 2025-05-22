@@ -21,7 +21,8 @@ export const addViolationLog = async (log: any) => {
             floor_number: log.floor_number,
             time: log.time,
             violation: log.violation,
-            violation_id: log.violation_id
+            violation_id: log.violation_id,
+            status: log.status
         };
         
         await addDoc(collectionRef, violationLog);

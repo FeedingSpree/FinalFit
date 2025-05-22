@@ -31,19 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import IconButton from '@mui/material/IconButton';
 
 const getRandomColor = () => {
-  const colors = [
-    "#ffd700", // gold
-    "#4caf50", // green
-    "#2196f3", // blue
-    "#ff9800", // orange
-    "#e91e63", // pink
-    "#9c27b0", // purple
-    "#00bcd4", // cyan
-    "#f44336", // red
-    "#607d8b", // blue-grey
-    "#8bc34a", // light green
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
+  return "#737373"; // this is grey[900] in Material UI
 };
 
 const getTodayStr = () => {
@@ -429,6 +417,7 @@ const Calendar = () => {
                   backgroundColor: event.backgroundColor,
                   margin: "10px 0",
                   borderRadius: "16px",
+                  color: '#fff',
                   cursor: 'pointer',
                   opacity: selectedEvents.includes(event.id) ? 0.7 : 1,
                   outline: selectedEvents.includes(event.id) 

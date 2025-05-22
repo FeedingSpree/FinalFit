@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import useViolationStore from '../services/violationStore';
+import { addReviewLog} from '../services/reviewLogsService.ts';
 import { addViolationLog } from '../services/violationLogsService.ts';
+import { addDetectionLog } from '../services/detectionLogsService.ts'; // Add this line
+
+// Rest of the DetectionContext.jsx file remains the same
 
 export const DetectionContext = createContext({
   violations: [],
@@ -30,7 +34,6 @@ export const DetectionProvider = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           
-          // Only process if it's a violation type and has data
           if (data.type === "violation" && 
               data.data && 
               data.data.violation_id && 
@@ -40,31 +43,22 @@ export const DetectionProvider = ({ children }) => {
             setTimeout(() => setIsDetecting(false), 5000);
             
             const violationLog = {
-              building_number: data.data.building_number,
               camera_number: data.data.camera_number,
               date: data.data.date,
-              floor_number: data.data.floor_number,
               time: data.data.time,
               violation: data.data.violation,
-              violation_id: data.data.violation_id
+              violation_id: data.data.violation_id,
+              url: data.data.url,
+              status: data.data.status
             };
 
-            // Update hourly violations count only for new violations
-            setHourlyViolations(prev => {
-              const oneHourAgo = new Date();
-              oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-              const violationDate = new Date(`${data.data.date}T${data.data.time}`);
-              
-              // Only increment for new violations within the last hour
-              if (violationDate > oneHourAgo) {
-                console.log(`New violation detected: ${data.data.violation}`); // Debug log
-                return prev + 1;
-              }
-              return prev;
-            });
-
             setLastViolationId(data.data.violation_id);
-            await addViolationLog(violationLog);
+            
+            // Update violation count first
+            setHourlyViolations(prev => prev + 1);
+            
+            // Then add the violation to the log
+            await addReviewLog(violationLog);
             addViolation(violationLog);
             setShowAlert(true);
           }
@@ -76,7 +70,7 @@ export const DetectionProvider = ({ children }) => {
 
     // Check for detections more frequently
     const detectionInterval = setInterval(checkDetection, 500);
-
+    
     // Clean up old violations every minute
     const cleanupInterval = setInterval(() => {
       const oneHourAgo = new Date();

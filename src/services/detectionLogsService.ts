@@ -13,11 +13,23 @@ import { db } from "../firebase.tsx";
 const collectionRef = collection(db, "nonviolationlogs");
 
 export const addDetectionLog = async (log: any) => {
-    const newLog = {
-        ...log,
-        timestamp: Timestamp.fromDate(new Date(log.timestamp)),
-    };
-    await addDoc(collectionRef, newLog);
+    try {
+        const detectionLog = {
+            camera_number: log.camera_number,
+            date: log.date,
+            time: log.time,
+            detection: log.detection,
+            detection_id: log.detection_id,
+            status: log.status,
+            url: log.url,
+            confidence: log.confidence
+        };
+        await addDoc(collectionRef, detectionLog);
+        return detectionLog;
+    } catch (error) {
+        console.error("Error adding detection log:", error);
+        throw error;
+    }
 };
 
 export const getDetectionLogs = async () => {
@@ -36,8 +48,7 @@ export const getDetectionLogs = async () => {
 export const updateDetectionLog = async (id: string, updatedLog: any) => {
     const logRef = doc(db, "nonviolationlogs", id);
     await updateDoc(logRef, {
-        ...updatedLog,
-        timestamp: Timestamp.fromDate(new Date(updatedLog.timestamp)),
+        ...updatedLog
     });
 };
 

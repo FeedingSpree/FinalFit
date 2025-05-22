@@ -17,9 +17,10 @@ import AnalyticsOutlinedIcon from '@mui/icons-material/AnalyticsOutlined';
 import HistoryEduOutlinedIcon from '@mui/icons-material/HistoryEduOutlined';
 import { getUsers } from "../../services/userService.ts";
 import { addUserLog } from "../../services/userLogsService.ts";
+import { getReviewLogs } from "../../services/reviewLogsService.ts";
 import { useDetection } from "../../context/DetectionContext";
 
-const Item = ({ title, to, icon, selected, setSelected, showAlert }) => {
+const Item = ({ title, to, icon, selected, setSelected, showAlert, count }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const { showAlert: contextShowAlert } = useDetection();
@@ -33,6 +34,23 @@ const Item = ({ title, to, icon, selected, setSelected, showAlert }) => {
     >
       <Box display="flex" alignItems="center" gap={1}>
         <Typography>{title}</Typography>
+        {count > 0 && title === "Detections" && (
+          <Box
+            sx={{
+              backgroundColor: '#ff9800',
+              color: '#fff',
+              borderRadius: '12px',
+              padding: '2px 8px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              minWidth: '24px',
+              textAlign: 'center',
+              display: 'inline-block'
+            }}
+          >
+            {count}
+          </Box>
+        )}
         {contextShowAlert && title === "Live Feed" && (
           <Box
             sx={{
@@ -75,6 +93,7 @@ const Sidebar = ({ isSidebar }) => {
   const [userName, setUserName] = useState("Loading...");
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [userRole, setUserRole] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Updated initialization of selected state
   const [selected, setSelected] = useState(() => {
@@ -84,7 +103,7 @@ const Sidebar = ({ isSidebar }) => {
       '/live-feed': 'Live Feed',
       '/users': 'Users',
       '/policies': 'Policies',
-      '/detectionlogs': 'Detection Logs',
+      '/detectionlogs': 'Detections',
       '/audittrails': 'Audit Trails',
       '/violations': 'Violations', // Add this
       '/calendar': 'Calendar',
@@ -101,7 +120,7 @@ const Sidebar = ({ isSidebar }) => {
       '/live-feed': 'Live Feed',
       '/users': 'Users',
       '/policies': 'Policies',
-      '/detectionlogs': 'Detection Logs',
+      '/detectionlogs': 'Detections',
       '/audittrails': 'Audit Trails',
       '/violations': 'Violations', // Add this
       '/calendar': 'Calendar',
@@ -130,6 +149,27 @@ const Sidebar = ({ isSidebar }) => {
     };
 
     fetchUserData();
+  }, []);
+
+  // Add this useEffect to fetch and update the pending count
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const logs = await getReviewLogs();
+        const pendingLogs = logs.filter(log => log.status === 'Pending');
+        setPendingCount(pendingLogs.length);
+      } catch (error) {
+        console.error('Error fetching pending count:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchPendingCount();
+
+    // Set up interval to refresh count
+    const interval = setInterval(fetchPendingCount, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogoutClick = () => {
@@ -176,10 +216,10 @@ const Sidebar = ({ isSidebar }) => {
   const menuItems = {
     OSA: [
       { title: "Dashboard", to: "/dashboard", icon: <AnalyticsOutlinedIcon /> },
-      { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
+      //{ title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
       { title: "Users", to: "/users", icon: <PeopleOutlinedIcon /> },
       { title: "Policies", to: "/policies", icon: <ContactsOutlinedIcon /> },
-      { title: "Detection Logs", to: "/detectionlogs", icon: <ReceiptOutlinedIcon /> },
+      { title: "Detections", to: "/detectionlogs", icon: <ReceiptOutlinedIcon />, count: pendingCount },
       { title: "Violations", to: "/violations", icon: <HistoryEduOutlinedIcon /> },
       { title: "Audit Trails", to: "/audittrails", icon: <RecentActorsOutlinedIcon /> },
       { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
@@ -187,8 +227,7 @@ const Sidebar = ({ isSidebar }) => {
     ],
     SOHAS: [
       { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
-      { title: "Detection Logs", to: "/detectionlogs", icon: <ReceiptOutlinedIcon /> },
-      { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
+      //{ title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
       { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
     ]
   };
@@ -271,7 +310,8 @@ const Sidebar = ({ isSidebar }) => {
                 icon={item.icon}
                 selected={selected}
                 setSelected={setSelected}
-                showAlert={item.showAlert && isFeedInitialized && showAlert}
+                showAlert={item.showAlert}
+                count={item.count}
               />
             ))}
             

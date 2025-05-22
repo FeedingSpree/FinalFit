@@ -16,8 +16,7 @@ import {
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { 
   GridToolbarContainer,
-  GridToolbarDensitySelector,
-  GridToolbarExport
+  GridToolbarDensitySelector
 } from '@mui/x-data-grid';
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
@@ -108,7 +107,6 @@ const CustomToolbar = ({ value, onChange, dateFilter, onDateChange }) => {
           />
         </Box>
         <GridToolbarDensitySelector />
-        <GridToolbarExport />
       </Box>
     </GridToolbarContainer>
   );
@@ -146,9 +144,9 @@ const ViolationHandling = () => {
 
   const [sortModel, setSortModel] = useState([
     {
-      field: 'name',
-      sort: 'asc',
-    },
+      field: 'date',
+      sort: 'desc'  // Change from 'asc' to 'desc'
+    }
   ]);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -408,14 +406,11 @@ const ViolationHandling = () => {
       return;
     }
 
-    // If no errors, proceed with submission
     try {
-      // Get the date parts from the YYYY-MM-DD format
       const [year, month, day] = formData.date.split('-');
-        
       const formattedData = {
         ...formData,
-        yearLevel: formData.yearLevel.toString(),
+        yearLevel: formData.yearLevel,
         date: `${month}-${day}-${year}`
       };
 
@@ -425,27 +420,66 @@ const ViolationHandling = () => {
       if (selectedRecord) {
         await updateStudentRecord(selectedRecord.id, formattedData);
       } else {
-        await addStudentRecord(formattedData);
-          
-        // Add audit log for new violation record using the same log_id as the logged-in user
+        // Generate a unique ID for the new record
+        const newRecord = {
+          ...formattedData,
+          id: Date.now().toString() // Add a unique ID
+        };
+        await addStudentRecord(newRecord);
+        
+        // Add audit log
         await addUserLog({
-          log_id: sessionUser.log_id, // Use the same log_id from session
+          log_id: sessionUser.log_id,
           username: sessionUser?.username || 'System',
           action: "Recorded a Violation",
           date: new Date().toISOString().split('T')[0],
           time: new Date().toTimeString().split(' ')[0]
         });
       }
-        
+      
+      // Fetch updated records and sort them
       const updatedRecords = await getStudentRecords();
-      setRecords(updatedRecords);
+      const sortedRecords = [...updatedRecords].sort((a, b) => {
+        const dateA = new Date(a.date.split('-').reverse().join('-'));
+        const dateB = new Date(b.date.split('-').reverse().join('-'));
+        return dateB - dateA;
+      });
+      
+      setAllRecords(sortedRecords);
+      setRecords(sortedRecords);
       handleClose();
     } catch (error) {
       console.error("Error saving record:", error);
       alert("Error saving record. Please try again.");
     }
   };
+  // Add this function to aggregate student violations
+  const aggregateViolations = (records) => {
+    const violationCounts = records.reduce((acc, record) => {
+      // Create a unique key for each student
+      const studentKey = `${record.name}-${record.program}-${record.yearLevel}`;
+      
+      if (!acc[studentKey]) {
+        acc[studentKey] = {
+          ...record,
+          violationCount: 1,
+          violations: [record.violation]  // Keep track of violation types
+        };
+      } else {
+        acc[studentKey].violationCount += 1;
+        acc[studentKey].violations.push(record.violation);
+        // Update the date to the most recent violation
+        const currentDate = new Date(record.date);
+        const existingDate = new Date(acc[studentKey].date);
+        if (currentDate > existingDate) {
+          acc[studentKey].date = record.date;
+        }
+      }
+      return acc;
+    }, {});
 
+    return Object.values(violationCounts);
+  };
   const handleDelete = async (id) => {
     try {
       setIsLoading(true);
@@ -513,8 +547,15 @@ const ViolationHandling = () => {
       try {
         setIsLoading(true);
         const fetchedRecords = await getStudentRecords();
-        setAllRecords(fetchedRecords); // Store all records
-        setRecords(fetchedRecords);    // Display records
+        // Sort records by date in descending order
+        const sortedRecords = [...fetchedRecords].sort((a, b) => {
+          const dateA = new Date(a.date.split('-').reverse().join('-'));
+          const dateB = new Date(b.date.split('-').reverse().join('-'));
+          return dateB - dateA;  // Sort in descending order
+        });
+        
+        setAllRecords(sortedRecords);
+        setRecords(sortedRecords);
       } catch (error) {
         console.error("Error fetching records:", error);
       } finally {
@@ -527,17 +568,20 @@ const ViolationHandling = () => {
 
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportConfig, setReportConfig] = useState({
-    startDate: '',
-    endDate: '',
-    department: '',
-    reportType: 'detailed'
+    startDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    department: 'all',
+    reportType: 'detailed',
+    sortBy: 'name', // Add default sort field
+    sortOrder: 'asc' // Add default sort order
   });
 
   const handleReportConfigSubmit = async () => {
     try {
+      // Get the logged-in user
       const user = JSON.parse(sessionStorage.getItem("user"));
       const generatedBy = [user.first_name, user.last_name].filter(Boolean).join(' ');
-      
+
       // Log the report generation
       await addUserLog({
         log_id: user.log_id,
@@ -546,6 +590,8 @@ const ViolationHandling = () => {
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().split(' ')[0]
       });
+
+      // Filter records by department and date range
       let filteredRecords = [...records];
       
       // Apply department filter
@@ -560,13 +606,29 @@ const ViolationHandling = () => {
         const recordDate = new Date(record.date);
         const startDate = new Date(reportConfig.startDate);
         const endDate = new Date(reportConfig.endDate);
-        // Set hours to 0 for accurate date comparison
         recordDate.setHours(0, 0, 0, 0);
         startDate.setHours(0, 0, 0, 0);
         endDate.setHours(0, 0, 0, 0);
-        
         return recordDate >= startDate && recordDate <= endDate;
       });
+
+      // First aggregate the violations
+      const aggregatedRecords = aggregateViolations(filteredRecords);
+
+      // Then sort the aggregated records
+      const sortedRecords = aggregatedRecords.sort((a, b) => {
+        const sortField = reportConfig.sortBy;
+        const sortOrder = reportConfig.sortOrder === 'asc' ? 1 : -1;
+        
+        if (sortField === 'violationCount') {
+          return (a.violationCount - b.violationCount) * sortOrder;
+        }
+        
+        if (a[sortField] < b[sortField]) return -1 * sortOrder;
+        if (a[sortField] > b[sortField]) return 1 * sortOrder;
+        return 0;
+      });
+
 
       // Generate statistics
       const summaryStatistics = {
@@ -670,22 +732,59 @@ const ViolationHandling = () => {
               },
               {
                 columns: [
-                  { 
-                    text: `Generated on: ${new Date().toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}`,
-                    fontSize: 8,
-                    color: '#666',
-                    margin: [40, 5, 0, 0]
+                  {
+                    width: 'auto',
+                    text: [
+                      { text: 'Period: ', fontSize: 8, color: '#666' },
+                      { 
+                        text: `${new Date(reportConfig.startDate).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })} - ${new Date(reportConfig.endDate).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}`,
+                        fontSize: 8,
+                        color: '#666'
+                      }
+                    ],
+                    margin: [40, 5, 10, 0]
                   },
                   {
+                    width: 'auto',
+                    text: [
+                      { text: 'Generated by: ', fontSize: 8, color: '#666' },
+                      { text: generatedBy, fontSize: 8, color: '#666' }
+                    ],
+                    margin: [25, 5, 10, 0]
+                  },
+                  {
+                    width: 'auto',
+                    text: [
+                      { text: 'Generated on: ', fontSize: 8, color: '#666' },
+                      { 
+                        text: new Date().toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }), 
+                        fontSize: 8, 
+                        color: '#666' 
+                      }
+                    ],
+                    alignment: 'center',
+                    margin: [25, 5, 10, 0]
+                  },
+                  {
+                    width: 'auto',
                     text: `Page ${currentPage} of ${pageCount}`,
                     fontSize: 8,
                     color: '#666',
-                    alignment: 'right',
-                    margin: [0, 5, 40, 0]
+                    margin: [20, 5, 10, 0]
                   }
                 ]
               }
@@ -703,30 +802,21 @@ const ViolationHandling = () => {
           {
             table: {
               headerRows: 1,
-              widths: ['*', '*', '*', '*', '*', '*'],
+              widths: ['*', '*', '*', '*', '*'],
               body: [
                 [
                   { text: 'Student Name', style: 'tableHeader' },
                   { text: 'Program', style: 'tableHeader' },
-                  { text: 'Year Level', style: 'tableHeader' },
-                  { text: 'Violation', style: 'tableHeader' },
-                  { text: 'Date', style: 'tableHeader' },
-                  { text: 'Department', style: 'tableHeader' }
+                  { text: 'Year Level', style: 'tableHeader', alignment: 'center' },
+                  { text: 'Violation Count', style: 'tableHeader', alignment: 'center' },
+                  { text: 'Department', style: 'tableHeader', alignment: 'center' }
                 ],
-                ...filteredRecords.map(record => [
+                ...sortedRecords.map(record => [
                   { text: record.name, style: 'tableCell' },
                   { text: record.program, style: 'tableCell' },
-                  { text: record.yearLevel, style: 'tableCell' },
-                  { text: record.violation, style: 'tableCell' },
-                  { 
-                    text: new Date(record.date).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    }),
-                    style: 'tableCell'
-                  },
-                  { text: record.department, style: 'tableCell' }
+                  { text: record.yearLevel, style: 'tableCell', alignment: 'center'},
+                  { text: record.violationCount.toString(), style: 'tableCell', alignment: 'center'},
+                  { text: record.department, style: 'tableCell', alignment: 'center' }
                 ])
               ]
             },
@@ -756,40 +846,6 @@ const ViolationHandling = () => {
             alignment: 'center',
             margin: [0, 20, 0, 10],
             pageBreak: 'before'
-          },
-          {
-            text: 'Report Information',
-            fontSize: 16,
-            bold: true,
-            margin: [0, 20, 0, 10]
-          },
-          {
-            columns: [
-              {
-                width: 'auto',
-                stack: [
-                  { text: 'Period:', style: 'label' },
-                  { text: 'Generated by:', style: 'label' },
-                  { text: 'Department:', style: 'label' }
-                ]
-              },
-              {
-                width: '*',
-                stack: [
-                  { 
-                    text: `${new Date(reportConfig.startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} - ${new Date(reportConfig.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
-                    style: 'value'
-                  },
-                  { text: generatedBy, style: 'value' },
-                  { 
-                    text: reportConfig.department === 'all' ? 'All Departments' : reportConfig.department,
-                    style: 'value'
-                  }
-                ]
-              }
-            ],
-            columnGap: 10,
-            margin: [0, 0, 0, 20]
           },
           {
             columns: [
@@ -1003,7 +1059,8 @@ const ViolationHandling = () => {
             text: 'Violations per Day',
             fontSize: 16,
             bold: true,
-            margin: [0, 0, 0, 10]
+            margin: [0, 0, 0, 10],
+            pageBreak: 'before'
           },
           {
             table: {
@@ -1060,10 +1117,12 @@ const ViolationHandling = () => {
 
       // Reset the form
       setReportConfig({
-        startDate: '',
-        endDate: '',
-        department: '',
-        reportType: 'detailed'
+        startDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        department: 'all',
+        reportType: 'detailed',
+        sortBy: 'name',
+        sortOrder: 'asc'
       });
 
     } catch (error) {
@@ -1227,7 +1286,7 @@ const ViolationHandling = () => {
           onSelectionModelChange={(ids) => setSelectedRows(ids)}
           initialState={{
             sorting: {
-              sortModel: [{ field: 'name', sort: 'asc' }],
+              sortModel: [{ field: 'date', sort: 'desc' }]  // Change from 'asc' to 'desc'
             },
           }}
           sx={{
@@ -1667,6 +1726,9 @@ const ViolationHandling = () => {
                   value={formData.date}
                   onChange={(e) => handleInputChange('date', e.target.value)}
                   error={!!formErrors.date}
+                  inputProps={{
+                    max: new Date().toISOString().split('T')[0] // Disable future dates
+                  }}
                   sx={{
                     color: colors.grey[100],
                     '& .MuiOutlinedInput-notchedOutline': {
@@ -1722,10 +1784,12 @@ const ViolationHandling = () => {
         onClose={() => {
           setIsReportDialogOpen(false);
           setReportConfig({
-            startDate: '',
-            endDate: '',
-            department: '',
-            reportType: 'detailed'
+            startDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            endDate: new Date().toISOString().split('T')[0],
+            department: 'all',
+            reportType: 'detailed',
+            sortBy: 'name',
+            sortOrder: 'asc'
           });
         }}
         PaperProps={{
@@ -1750,29 +1814,19 @@ const ViolationHandling = () => {
             component="form"
             sx={{
               display: 'flex',
-              flexDirection: 'row', // <--- horizontal alignment
-              gap: 4,
-              flexWrap: 'wrap' // allows wrapping if screen is small
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 4
             }}
           >
             {/* Department Selection */}
             <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: '200px', gap: 1 }}>
-              <Typography
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold',
-                  paddingTop: '8px',
-                  fontSize: '1rem'
-                }}
-              >
-                Select Department
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'bold', paddingTop: '8px', fontSize: '1rem' }}>
+                Department:
               </Typography>
               <Select
                 value={reportConfig.department}
-                onChange={(e) => setReportConfig(prev => ({
-                  ...prev,
-                  department: e.target.value
-                }))}
+                onChange={(e) => setReportConfig(prev => ({ ...prev, department: e.target.value }))}
                 fullWidth
                 sx={{
                   backgroundColor: colors.grey[800],
@@ -1782,34 +1836,20 @@ const ViolationHandling = () => {
               >
                 <MenuItem value="all">All Departments</MenuItem>
                 {departments.map(dept => (
-                  <MenuItem key={dept} value={dept}>
-                    {dept}
-                  </MenuItem>
+                  <MenuItem key={dept} value={dept}>{dept}</MenuItem>
                 ))}
               </Select>
             </Box>
 
             {/* Date Range Selection */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 2, gap: 1, minWidth: '300px' }}>
-              <Typography
-                sx={{ 
-                  color: colors.grey[100],
-                  fontWeight: 'bold',
-                  fontSize: '1rem'
-                }}
-              >
-                Select Date Range
+            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 2, minWidth: '300px', gap: 1 }}>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'bold', fontSize: '1rem' }}>
+                Date Range:
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{ 
-                      color: colors.grey[100],
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    Start Date
-                  </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {/* Start Date */}
+                <Box sx={{ flex: 1, minWidth: '150px', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem' }}>Start:</Typography>
                   <OutlinedInput
                     type="date"
                     fullWidth
@@ -1819,29 +1859,20 @@ const ViolationHandling = () => {
                       startDate: e.target.value,
                       endDate: e.target.value > prev.endDate ? e.target.value : prev.endDate
                     }))}
+                    inputProps={{ 
+                      max: new Date().toISOString().split('T')[0] // Prevent future start date
+                    }}
                     sx={{
                       color: colors.grey[100],
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: colors.grey[400],
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: colors.grey[100],
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: colors.grey[100],
-                      },
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[400] },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] }
                     }}
                   />
                 </Box>
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    sx={{ 
-                      color: colors.grey[100],
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    End Date
-                  </Typography>
+                {/* End Date */}
+                <Box sx={{ flex: 1, minWidth: '150px', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem' }}>End:</Typography>
                   <OutlinedInput
                     type="date"
                     fullWidth
@@ -1850,27 +1881,75 @@ const ViolationHandling = () => {
                       ...prev,
                       endDate: e.target.value
                     }))}
-                    inputProps={{
-                      min: reportConfig.startDate
+                    inputProps={{ 
+                      min: reportConfig.startDate,
+                      max: new Date().toISOString().split('T')[0]  // Prevent future dates
                     }}
                     sx={{
                       color: colors.grey[100],
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: colors.grey[400],
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: colors.grey[100],
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: colors.grey[100],
-                      },
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[400] },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] }
                     }}
                   />
+                </Box>
+
+              </Box>
+            </Box>
+
+            {/* Sorting Options */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: '300px', gap: 1 }}>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'bold', fontSize: '1rem', marginTop: '8px' }}>
+                Sort:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {/* Sort By */}
+                <Box sx={{ flex: 1, minWidth: '140px' }}>
+                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem', marginBottom: '8px' }}>
+                    By:
+                  </Typography>
+                  <Select
+                    fullWidth
+                    value={reportConfig.sortBy}
+                    onChange={(e) => setReportConfig(prev => ({ ...prev, sortBy: e.target.value }))}
+                    sx={{
+                      backgroundColor: colors.grey[800],
+                      color: colors.grey[100],
+                      '& .MuiSelect-icon': { color: colors.grey[100] }
+                    }}
+                  >
+                    <MenuItem value="name">Student Name</MenuItem>
+                    <MenuItem value="program">Program</MenuItem>
+                    <MenuItem value="yearLevel">Year Level</MenuItem>
+                    <MenuItem value="violationCount">Violation Count</MenuItem>
+                    <MenuItem value="department">Department</MenuItem>
+                  </Select>
+                </Box>
+
+                {/* Sort Order */}
+                <Box sx={{ flex: 1, minWidth: '140px' }}>
+                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem', marginBottom: '8px' }}>
+                    Order:
+                  </Typography>
+                  <Select
+                    fullWidth
+                    value={reportConfig.sortOrder}
+                    onChange={(e) => setReportConfig(prev => ({ ...prev, sortOrder: e.target.value }))}
+                    sx={{
+                      backgroundColor: colors.grey[800],
+                      color: colors.grey[100],
+                      '& .MuiSelect-icon': { color: colors.grey[100] }
+                    }}
+                  >
+                    <MenuItem value="asc">Ascending</MenuItem>
+                    <MenuItem value="desc">Descending</MenuItem>
+                  </Select>
                 </Box>
               </Box>
             </Box>
           </Box>
         </DialogContent>
+
 
         <DialogActions 
           sx={{ 
@@ -1883,10 +1962,12 @@ const ViolationHandling = () => {
             onClick={() => {
               setIsReportDialogOpen(false);
               setReportConfig({
-                startDate: '',
-                endDate: '',
-                department: '',
-                reportType: 'detailed'
+                startDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                endDate: new Date().toISOString().split('T')[0],
+                department: 'all', 
+                reportType: 'detailed', 
+                sortBy: 'name',
+                sortOrder: 'asc'
               });
             }}
             variant="outlined"
@@ -1925,20 +2006,5 @@ const ViolationHandling = () => {
     </Box>
   );
 };
-
-const textFieldStyle = (colors) => ({
-  '& .MuiInputLabel-root': { 
-    color: colors.grey[100],
-    fontWeight: 'bold'
-  },
-  '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: colors.grey[400] },
-    '&:hover fieldset': { borderColor: colors.grey[100] },
-    '&.Mui-focused fieldset': { borderColor: colors.grey[100] },
-  },
-  '& .MuiInputBase-input': { color: colors.grey[100] },
-  '& .MuiSelect-icon': { color: colors.grey[100] },
-  marginBottom: '15px'
-});
 
 export default ViolationHandling;

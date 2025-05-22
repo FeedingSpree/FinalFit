@@ -11,9 +11,7 @@ import {
 import { DataGrid } from "@mui/x-data-grid";
 import { 
   GridToolbarContainer,
-  GridToolbarFilterButton,
-  GridToolbarDensitySelector,
-  GridToolbarExport
+  GridToolbarDensitySelector
 } from '@mui/x-data-grid';
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
@@ -103,7 +101,6 @@ const CustomToolbar = ({ searchText, onSearchChange, dateFilter, onDateChange })
           />
         </Box>
         <GridToolbarDensitySelector />
-        <GridToolbarExport />
       </Box>
     </GridToolbarContainer>
   );
@@ -123,9 +120,13 @@ const UserLogs = () => {
   });
   const [sortModel, setSortModel] = useState([
     {
-      field: 'timestamp',
+      field: 'date',
       sort: 'desc',
     },
+    {
+      field: 'time',
+      sort: 'desc',
+    }
   ]);
   const [searchText, setSearchText] = useState("");
   const [dateFilter, setDateFilter] = useState('');
@@ -134,10 +135,18 @@ const UserLogs = () => {
     fetchLogs();
   }, []);
 
+  // Update the fetchLogs function to sort the data
   const fetchLogs = async () => {
     const data = await getUserLogs();
-    setAllLogs(data);  // Store all logs
-    setLogs(data);     // Set current displayed logs
+    // Sort the logs by date and time in descending order
+    const sortedData = [...data].sort((a, b) => {
+      const dateA = new Date(`${a.date}T${a.time}`);
+      const dateB = new Date(`${b.date}T${b.time}`);
+      return dateB - dateA;
+    });
+    
+    setAllLogs(sortedData);
+    setLogs(sortedData);
   };
 
   const handleOpenModal = (log = null) => {
@@ -310,7 +319,10 @@ const UserLogs = () => {
           onRowDoubleClick={(params) => handleOpenModal(params.row)}
           initialState={{
             sorting: {
-              sortModel: [{ field: 'timestamp', sort: 'desc' }],
+              sortModel: [
+                { field: 'date', sort: 'desc' },
+                { field: 'time', sort: 'desc' }
+              ],
             },
           }}
           sx={{

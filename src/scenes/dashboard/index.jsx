@@ -5,6 +5,7 @@ import Header from "../../components/Header";
 import { useEffect, useState } from "react";
 import { getViolationLogs } from "../../services/violationLogsService.ts";
 import { getDetectionLogs } from "../../services/detectionLogsService.ts";
+import { getReviewLogs } from "../../services/reviewLogsService.ts";
 import {
   LineChart,
   Line,
@@ -35,26 +36,30 @@ const VIOLATION_DISPLAY_NAMES = {
 };
 
 // First, update the calculatePercentageChange function to include actual numbers
-const calculatePercentageChange = (violations) => {
+const calculatePercentageChange = (getReviewLogs) => {
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-  
-  const todayCount = violations.filter(v => v.date === todayStr).length;
-  const yesterdayCount = violations.filter(v => v.date === yesterdayStr).length;
-  
-  if (yesterdayCount === 0) return { 
-    percent: 0, 
-    increased: false,
-    todayCount,
-    yesterdayCount,
-    difference: todayCount - yesterdayCount 
-  };
-  
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  // Convert to local date strings: YYYY-MM-DD
+  const todayStr = today.toLocaleDateString('sv-SE');      // 'sv-SE' gives YYYY-MM-DD format
+  const yesterdayStr = yesterday.toLocaleDateString('sv-SE');
+
+  const todayCount = getReviewLogs.filter(v => v.date === todayStr).length;
+  const yesterdayCount = getReviewLogs.filter(v => v.date === yesterdayStr).length;
+
+  if (yesterdayCount === 0) {
+    return { 
+      percent: 0, 
+      increased: false,
+      todayCount,
+      yesterdayCount,
+      difference: todayCount - yesterdayCount 
+    };
+  }
+
   const percentChange = ((todayCount - yesterdayCount) / yesterdayCount) * 100;
+
   return {
     percent: Math.abs(Math.round(percentChange)),
     increased: percentChange > 0,
@@ -64,27 +69,31 @@ const calculatePercentageChange = (violations) => {
   };
 };
 
-// Update the calculateUniformPercentageChange function similarly
-const calculateUniformPercentageChange = (detections) => {
+
+const calculateUniformPercentageChange = (getReviewLogs) => {
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-  
-  const todayCount = detections.filter(d => d.date === todayStr).length;
-  const yesterdayCount = detections.filter(d => d.date === yesterdayStr).length;
-  
-  if (yesterdayCount === 0) return { 
-    percent: 0, 
-    increased: false,
-    todayCount,
-    yesterdayCount,
-    difference: todayCount - yesterdayCount 
-  };
-  
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  // Use local time in YYYY-MM-DD format
+  const todayStr = today.toLocaleDateString('sv-SE');      // e.g., "2025-05-22"
+  const yesterdayStr = yesterday.toLocaleDateString('sv-SE');
+
+  const todayCount = getReviewLogs.filter(d => d.date === todayStr).length;
+  const yesterdayCount = getReviewLogs.filter(d => d.date === yesterdayStr).length;
+
+  if (yesterdayCount === 0) {
+    return { 
+      percent: 0, 
+      increased: false,
+      todayCount,
+      yesterdayCount,
+      difference: todayCount - yesterdayCount 
+    };
+  }
+
   const percentChange = ((todayCount - yesterdayCount) / yesterdayCount) * 100;
+
   return {
     percent: Math.abs(Math.round(percentChange)),
     increased: percentChange > 0,
@@ -93,11 +102,12 @@ const calculateUniformPercentageChange = (detections) => {
     difference: Math.abs(todayCount - yesterdayCount)
   };
 };
+
 
 const Dashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
-  const [violations, setViolations] = useState([]);
+  const [reviewLogs, setReviewLogs] = useState([]);
   const [detections, setDetections] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [timeframe, setTimeframe] = useState("week");
@@ -173,7 +183,7 @@ const Dashboard = () => {
 
       const violationsRatioData = calculateViolationsRatio().map(row => [
         row.name,
-        `${((row.value / violations.length) * 100).toFixed(2)}%`
+        `${((row.value / reviewLogs.length) * 100).toFixed(2)}%`
       ]);
 
       const violationsRatioTable = {
@@ -315,25 +325,74 @@ const Dashboard = () => {
         footer: function(currentPage, pageCount) {
           return {
             stack: [
-              { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555.28, y2: 0, lineWidth: 1, lineColor: '#ffd700' }] },
+              { 
+                canvas: [
+                  { 
+                    type: 'line', 
+                    x1: 40, 
+                    y1: 0, 
+                    x2: 555.28, 
+                    y2: 0, 
+                    lineWidth: 1, 
+                    lineColor: '#ffd700' 
+                  }
+                ] 
+              },
               {
                 columns: [
-                  { 
-                    text: `Generated on: ${new Date().toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}`,
-                    fontSize: 8,
-                    color: '#666',
-                    margin: [40, 5, 0, 0]
+                  {
+                    width: 'auto',
+                    text: [
+                      { text: 'Period: ', fontSize: 8, color: '#666' },
+                      { 
+                        text: `${new Date(dateRange.startDate).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })} - ${new Date(dateRange.endDate).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}`,
+                        fontSize: 8,
+                        color: '#666'
+                      }
+                    ],
+                    margin: [40, 5, 10, 0]
                   },
                   {
+                    width: 'auto',
+                    text: [
+                      { text: 'Generated by: ', fontSize: 8, color: '#666' },
+                      { text: generatedBy, fontSize: 8, color: '#666' }
+                    ],
+                    margin: [25, 5, 10, 0]
+                  },
+                  {
+                    width: 'auto',
+                    text: [
+                      { text: 'Generated on: ', fontSize: 8, color: '#666' },
+                      { 
+                        text: new Date().toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }), 
+                        fontSize: 8, 
+                        color: '#666' 
+                      }
+                    ],
+                    alignment: 'center',
+                    margin: [25, 5, 10, 0]
+                  },
+                  {
+                    width: 'auto',
                     text: `Page ${currentPage} of ${pageCount}`,
                     fontSize: 8,
                     color: '#666',
-                    alignment: 'right',
-                    margin: [0, 5, 40, 0]
+                    margin: [20, 5, 10, 0]
                   }
                 ]
               }
@@ -386,35 +445,13 @@ const Dashboard = () => {
             margin: [0, 10, 0, 20] 
           } : {},
           uniformTypeTable,
-
-          // Report Metadata and Summary (moved to end)
-          { text: 'Report Information', style: 'sectionHeader', margin: [0, 30, 0, 10], pageBreak: 'before' },
-          {
-            columns: [
-              { 
-                stack: [
-                  { text: `Report Period:`, style: 'label' },
-                  { text: `Generated by:`, style: 'label' },
-                ],
-                width: 'auto'
-              },
-              { 
-                stack: [
-                  { text: getDateRangeText(), style: 'value' },
-                  { text: generatedBy, style: 'value' },
-                ],
-                width: '*'
-              }
-            ],
-            columnGap: 10,
-            margin: [0, 0, 0, 20]
-          },
           {
             stack: [
               { 
                 text: 'Summary Statistics', 
                 style: 'sectionHeader',
-                margin: [0, 20, 0, 10]
+                margin: [0, 20, 0, 10],
+                pageBreak: 'before'
               },
               {
                 columns: [
@@ -425,7 +462,7 @@ const Dashboard = () => {
                       body: [
                         [
                           { text: 'Total Violations', style: 'tableHeader' },
-                          { text: violations.length, style: 'tableCell', alignment: 'right' }
+                          { text: reviewLogs.length, style: 'tableCell', alignment: 'right' }
                         ],
                         [
                           { text: 'Total Uniforms', style: 'tableHeader' },
@@ -456,7 +493,7 @@ const Dashboard = () => {
                         [
                           { text: 'Period Trend', style: 'tableHeader' },
                           { 
-                            text: violations.length > 0 ? '↑ Increasing' : '↓ Decreasing', 
+                            text: reviewLogs.length > 0 ? '↑ Increasing' : '↓ Decreasing', 
                             style: 'tableCell',
                             alignment: 'right'
                           }
@@ -566,12 +603,12 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [violationLogs, detectionLogs, events] = await Promise.all([
-          getViolationLogs(),
+        const [logs, detectionLogs, events] = await Promise.all([
+          getReviewLogs(),
           getDetectionLogs(),
           getCalendarEvents()
         ]);
-        setViolations(violationLogs);
+        setReviewLogs(logs);
         setDetections(detectionLogs);
         setCalendarEvents(events);
       } catch (error) {
@@ -608,8 +645,8 @@ const Dashboard = () => {
     
     const interval = getDateInterval(start, end);
 
-    // Filter violations within date range and normalize dates
-    const filteredViolations = violations.filter(v => {
+    // Filter review logs within date range
+    const filteredLogs = reviewLogs.filter(v => {
       const vDate = new Date(v.date);
       vDate.setHours(0, 0, 0, 0);
       return vDate >= start && vDate <= end;
@@ -664,19 +701,18 @@ const Dashboard = () => {
     });
 
     // Aggregate violations using normalized dates
-    filteredViolations.forEach(violation => {
-      const vDate = new Date(violation.date);
+    filteredLogs.forEach(log => {
+      const vDate = new Date(log.date);
       vDate.setHours(0, 0, 0, 0);
       const dateKey = vDate.toISOString().split('T')[0];
       
       if (grouped[dateKey]) {
-        if (violation.violation === "cap") grouped[dateKey].cap += 1;
-        if (violation.violation === "shorts") grouped[dateKey].shorts += 1;
-        if (violation.violation === "no_sleeves") grouped[dateKey].no_sleeves += 1;
+        if (log.violation === "cap") grouped[dateKey].cap += 1;
+        if (log.violation === "shorts") grouped[dateKey].shorts += 1;
+        if (log.violation === "no_sleeves") grouped[dateKey].no_sleeves += 1;
       }
     });
 
-    // Convert to array and ensure proper date sorting
     return Object.values(grouped).sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
@@ -684,21 +720,17 @@ const Dashboard = () => {
   // Add this helper function to calculate average violations per day
   const calculateAverageViolationsPerDay = () => {
     try {
-      // Get start and end dates from the date range
       const start = new Date(dateRange.startDate);
       const end = new Date(dateRange.endDate);
       
-      // Calculate total days in the range (inclusive)
       const diffTime = Math.abs(end - start);
       const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       
-      // Count violations within the date range
-      const totalViolations = violations.filter(v => {
+      const totalViolations = reviewLogs.filter(v => {
         const violationDate = new Date(v.date);
         return violationDate >= start && violationDate <= end;
       }).length;
 
-      // Calculate and format average
       return (totalViolations / totalDays).toFixed(0);
     } catch (error) {
       console.error("Error calculating average violations:", error);
@@ -730,9 +762,9 @@ const Dashboard = () => {
 
   // PIE CHART
   const calculateViolationsRatio = () => {
-    const filteredViolations = violations.filter(v => isDateInRange(v.date));
-    const totals = filteredViolations.reduce((acc, violation) => {
-      const type = violation.violation;
+    const filteredLogs = reviewLogs.filter(v => isDateInRange(v.date));
+    const totals = filteredLogs.reduce((acc, log) => {
+      const type = log.violation;
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {});
@@ -747,9 +779,9 @@ const Dashboard = () => {
   };
   // BAR CHART
   const calculateViolationRanking = () => {
-    const filteredViolations = violations.filter(v => isDateInRange(v.date));
-    const totals = filteredViolations.reduce((acc, violation) => {
-      const type = violation.violation;
+    const filteredLogs = reviewLogs.filter(v => isDateInRange(v.date));
+    const totals = filteredLogs.reduce((acc, log) => {
+      const type = log.violation;
       acc[type] = (acc[type] || 0) + 1;
       return acc;
     }, {});
@@ -762,55 +794,39 @@ const Dashboard = () => {
       .sort((a, b) => b.value - a.value); // Sort by value in descending order
   };
 
-  const calculateUniformDetections = () => {
-    const filteredDetections = detections.filter(d => isDateInRange(d.date));
-    // For year view, combine all detections into two categories
-    if (timeframe === "year") {
-      const yearTotals = {
-        "PE": { name: "PE Uniform", male: 0, female: 0 },
-        "Regular": { name: "Regular Uniform", male: 0, female: 0 },
-        
-      };
-
-      filteredDetections.forEach(detection => {
-        if (detection && detection.detection) {
-          if (detection.detection.includes("Male PE")) {
-            yearTotals["PE"].male++;
-          } else if (detection.detection.includes("Female PE")) {
-            yearTotals["PE"].female++;
-          } else if (detection.detection.includes("Male Regular")) {
-            yearTotals["Regular"].male++;
-          } else if (detection.detection.includes("Female Regular")) {
-            yearTotals["Regular"].female++;
-          }
-        }
-      });
-
-      return Object.values(yearTotals);
-    }
-
-    // For week and month views, keep existing logic
-    const totals = {
-      "PE Uniform": { name: "PE Uniform", male: 0, female: 0 },
-      "Regular Uniform": { name: "Regular Uniform", male: 0, female: 0 }
-    };
-
-    filteredDetections.forEach(detection => {
-      if (detection && detection.detection) {
-        if (detection.detection.includes("Male PE")) {
-          totals["PE Uniform"].male++;
-        } else if (detection.detection.includes("Female PE")) {
-          totals["PE Uniform"].female++;
-        } else if (detection.detection.includes("Male Regular")) {
-          totals["Regular Uniform"].male++;
-        } else if (detection.detection.includes("Female Regular")) {
-          totals["Regular Uniform"].female++;
-        }
-      }
-    });
-
-    return Object.values(totals);
+const calculateUniformDetections = () => {
+  // Filter detections within date range
+  const filteredDetections = detections.filter(d => isDateInRange(d.date));
+  
+  // Initialize counters for both uniform types
+  const totals = {
+    "PE Uniform": { name: "PE Uniform", male: 0, female: 0 },
+    "Regular Uniform": { name: "Regular Uniform", male: 0, female: 0 }
   };
+
+  // Count detections based on detection type
+  filteredDetections.forEach(detection => {
+    if (detection && detection.detection) {
+      const detectionType = detection.detection.toLowerCase();
+      
+      if (detectionType.includes("reg_unif_m")) {
+        totals["Regular Uniform"].male++;
+      } 
+      else if (detectionType.includes("reg_unif_f")) {
+        totals["Regular Uniform"].female++;
+      }
+      else if (detectionType.includes("pe_unif_m")) {
+        totals["PE Uniform"].male++;
+      }
+      else if (detectionType.includes("pe_unif_f")) {
+        totals["PE Uniform"].female++;
+      }
+    }
+  });
+
+  // Return array of uniform type objects
+  return Object.values(totals);
+};
 
   // Helper to get base64 image from a DOM node (chart container)
   const getChartImage = async (selector) => {
@@ -1132,7 +1148,7 @@ const Dashboard = () => {
               alignItems="flex-end"
             >
               {(() => {
-                const change = calculatePercentageChange(violations);
+                const change = calculatePercentageChange(reviewLogs);
                 return (
                   <>
                     <Box display="flex" alignItems="center" gap={1}>

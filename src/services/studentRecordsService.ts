@@ -6,7 +6,7 @@ const studentRecordsCollectionRef = collection(db, "studentrecords");
 export const addStudentRecord = async (log: {
     name: string;
     program: string;
-    yearlevel: string;
+    yearLevel: string;
     violation: string;
     date: string;
     department: string;

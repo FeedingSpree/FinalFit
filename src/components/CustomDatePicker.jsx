@@ -6,7 +6,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowLeftIcon from '@mui/icons-material/ArrowLeft';
 import ArrowRightIcon from '@mui/icons-material/ArrowRight';
 
-// Add a new prop for minimum date
+// Update the CustomDatePicker component to include maxDate prop
 const CustomDatePicker = ({ label, value, onChange, minDate = null }) => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
@@ -58,6 +58,23 @@ const CustomDatePicker = ({ label, value, onChange, minDate = null }) => {
     return days;
   };
 
+  // Add function to check if date is in the future
+  const isDateDisabled = (day) => {
+    if (!day) return false;
+    
+    const checkDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      day
+    );
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Disable if date is in the future or before minDate
+    return checkDate > today || (minDate && checkDate < new Date(minDate));
+  };
+
+  // Update the handleDateSelect function
   const handleDateSelect = (day) => {
     if (day) {
       const newDate = new Date(
@@ -65,6 +82,14 @@ const CustomDatePicker = ({ label, value, onChange, minDate = null }) => {
         currentDate.getMonth(),
         day
       );
+      
+      // Check if the date is in the future
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (newDate > today) {
+        return;
+      }
       
       // Check if the date is after minDate if it exists
       if (minDate && newDate < new Date(minDate)) {
@@ -78,23 +103,19 @@ const CustomDatePicker = ({ label, value, onChange, minDate = null }) => {
     }
   };
 
+  // Update the handleMonthChange function to prevent going to future months
   const handleMonthChange = (increment) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + increment);
+    
+    const today = new Date();
+    
+    // Don't allow navigating to future months
+    if (newDate > today) {
+      return;
+    }
+    
     setCurrentDate(newDate);
-  };
-
-  // Add a function to check if a date should be disabled
-  const isDateDisabled = (day) => {
-    if (!day || !minDate) return false;
-    
-    const checkDate = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
-      day
-    );
-    
-    return checkDate < new Date(minDate);
   };
 
   // Update the calendar day buttons rendering
