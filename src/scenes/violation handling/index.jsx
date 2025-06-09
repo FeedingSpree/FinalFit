@@ -12,7 +12,9 @@ import {
   MenuItem,
   DialogActions,
   TextField,
+  IconButton
 } from "@mui/material";
+import ReportDialog from "./ReportDialog.jsx";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { 
   GridToolbarContainer,
@@ -26,6 +28,7 @@ import { addUserLog } from '../../services/userLogsService.ts';
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import pdfMake from 'pdfmake/build/pdfmake';
 import vfs from 'pdfmake/build/vfs_fonts.js';
+import CloseIcon from '@mui/icons-material/Close';
 
 // Initialize pdfMake
 pdfMake.vfs = vfs;
@@ -121,6 +124,8 @@ const ViolationHandling = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [formData, setFormData] = useState({
+    violation_id: '', // Add violation_id field
+    studentNumber: '', // Add student number field
     name: '',
     program: '',
     yearLevel: '',
@@ -129,6 +134,8 @@ const ViolationHandling = () => {
     department: ''
   });
   const [formErrors, setFormErrors] = useState({
+    violation_id: '', // Add violation_id error
+    studentNumber: '', // Add student number error
     name: '',
     program: '',
     yearLevel: '',
@@ -294,6 +301,20 @@ const ViolationHandling = () => {
 
   const columns = [
     {
+      field: "violation_id",
+      headerName: "Ticket Number",
+      flex: 1,
+      cellClassName: "name-column--cell",
+      sortable: true,
+    },
+    {
+      field: "studentNumber",
+      headerName: "Student Number",
+      flex: 1,
+      cellClassName: "name-column--cell",
+      sortable: true,
+    },
+    {
       field: "name",
       headerName: "Student Name",
       flex: 1,
@@ -346,11 +367,34 @@ const ViolationHandling = () => {
         );
       },
     },
+    {
+      field: "actions",
+      headerName: "Actions",
+      flex: 0.8,
+      sortable: false,
+      renderCell: (params) => (
+        <Typography
+          onClick={() => handleViewTicket(params.row)}
+          sx={{
+            color: '#0288D1',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            '&:hover': {
+              color: '#1B247E'
+            }
+          }}
+        >
+          View
+        </Typography>
+      ),
+    },
   ];
 
   const handleAddNew = () => {
     setSelectedRecord(null);
     setFormData({
+      violation_id: generateTicketNumber(), // Add generated ticket number
+      studentNumber: '',                    // Add student number field
       name: '',
       program: '',
       yearLevel: '',
@@ -359,6 +403,8 @@ const ViolationHandling = () => {
       department: ''
     });
     setFormErrors({
+      violation_id: '',
+      studentNumber: '',
       name: '',
       program: '',
       yearLevel: '',
@@ -375,8 +421,8 @@ const ViolationHandling = () => {
   };
 
   const handleSubmit = async () => {
-    // Reset all errors
     const newErrors = {
+      studentNumber: '',
       name: '',
       program: '',
       yearLevel: '',
@@ -385,7 +431,19 @@ const ViolationHandling = () => {
       department: ''
     };
 
-    // Validate required fields
+    // Validate student number
+    if (!formData.studentNumber) {
+      newErrors.studentNumber = 'Student number is required';
+    } else if (!/^\d{7}$/.test(formData.studentNumber)) {
+      newErrors.studentNumber = 'Student number must be exactly 7 digits';
+    }
+
+    // Validate name field
+    if (formData.name && !validateName(formData.name)) {
+      newErrors.name = 'Only letters and spaces are allowed';
+    }
+
+    // Check for other existing validations
     if (!formData.name) newErrors.name = 'Student name is required';
     if (!formData.program) newErrors.program = 'Program is required';
     if (!formData.yearLevel) newErrors.yearLevel = 'Year level is required';
@@ -393,15 +451,8 @@ const ViolationHandling = () => {
     if (!formData.date) newErrors.date = 'Date is required';
     if (!formData.department) newErrors.department = 'Department is required';
 
-    // Check name format
-    if (formData.name && !validateName(formData.name)) {
-      newErrors.name = 'Only letters and spaces are allowed';
-    }
-
-    // Update form errors
     setFormErrors(newErrors);
 
-    // Check if there are any errors
     if (Object.values(newErrors).some(error => error !== '')) {
       return;
     }
@@ -410,6 +461,8 @@ const ViolationHandling = () => {
       const [year, month, day] = formData.date.split('-');
       const formattedData = {
         ...formData,
+        violation_id: formData.violation_id, // Include the ticket number
+        studentNumber: formData.studentNumber,
         yearLevel: formData.yearLevel,
         date: `${month}-${day}-${year}`
       };
@@ -1130,6 +1183,27 @@ const ViolationHandling = () => {
     }
   };
 
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+
+  const handleViewTicket = (ticket) => {
+    setSelectedTicket(ticket);
+    setTicketDialogOpen(true);
+  };
+
+  // Add this function at the top of the ViolationHandling component
+  const generateTicketNumber = () => {
+    const today = new Date();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const yy = String(today.getFullYear()).slice(-2);
+    const randomLetters = Array(4)
+      .fill()
+      .map(() => String.fromCharCode(65 + Math.floor(Math.random() * 26)))
+      .join('');
+    return `VIO${mm}${dd}${yy}${randomLetters}`;
+  };
+
   return (
     <Box m="20px">
       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -1421,6 +1495,80 @@ const ViolationHandling = () => {
             noValidate
             autoComplete="off"
           >
+            {/* Ticket Number Display */}
+            <div className="form-row">
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
+                    color: colors.grey[100],
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Ticket Number
+                </Typography>
+                <OutlinedInput
+                  className="form-input"
+                  value={formData.violation_id}
+                  disabled
+                  sx={{
+                    backgroundColor: colors.grey[800],
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-input': {
+                      color: colors.grey[100],
+                      '-webkit-text-fill-color': colors.grey[100],
+                      cursor: 'default'
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Student Number Input */}
+            <div className="form-row">
+              <div className="form-field">
+                <Typography
+                  className="form-label"
+                  sx={{ 
+                    color: colors.grey[100],
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Student Number *
+                </Typography>
+                <OutlinedInput
+                  className="form-input"
+                  value={formData.studentNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d]/g, '');
+                    if (value.length <= 7) {
+                      handleInputChange('studentNumber', value);
+                    }
+                  }}
+                  placeholder="Enter 7-digit student number"
+                  error={!!formErrors.studentNumber}
+                  inputProps={{
+                    maxLength: 7,
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*'
+                  }}
+                  sx={{
+                    color: colors.grey[100],
+                    '& .MuiOutlinedInput-input': { color: colors.grey[100] }
+                  }}
+                />
+              </div>
+              {formErrors.studentNumber && (
+                <Typography 
+                  className="error-text"
+                  color="error" 
+                  variant="caption"
+                >
+                  {formErrors.studentNumber}
+                </Typography>
+              )}
+            </div>
+            {/* Student Name Input */}
             <div className="form-row">
               <div className="form-field">
                 <Typography
@@ -1435,25 +1583,16 @@ const ViolationHandling = () => {
                 <OutlinedInput
                   className="form-input"
                   value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="Enter student name"
+                  onChange={(e) => {
+                    // Only allow letters and spaces
+                    const value = e.target.value.replace(/[^A-Za-z\s]/g, '');
+                    handleInputChange('name', value);
+                  }}
+                  placeholder="Enter complete name"
                   error={!!formErrors.name}
                   sx={{
                     color: colors.grey[100],
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: formErrors.name ? '#f44336' : colors.grey[400],
-                      borderWidth: 1,
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: formErrors.name ? '#f44336' : colors.grey[100],
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: formErrors.name ? '#f44336' : colors.grey[100],
-                    },
-                    '&::placeholder': {
-                      color: colors.grey[500],
-                      opacity: 1,
-                    },
+                    '& .MuiOutlinedInput-input': { color: colors.grey[100] }
                   }}
                 />
               </div>
@@ -1467,7 +1606,6 @@ const ViolationHandling = () => {
                 </Typography>
               )}
             </div>
-
             <div className="form-row">
               <div className="form-field">
                 <Typography
@@ -1779,7 +1917,7 @@ const ViolationHandling = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog
+      <ReportDialog
         open={isReportDialogOpen}
         onClose={() => {
           setIsReportDialogOpen(false);
@@ -1792,218 +1930,181 @@ const ViolationHandling = () => {
             sortOrder: 'asc'
           });
         }}
-        PaperProps={{
-          sx: {
-            backgroundColor: colors.grey[900],
-            minWidth: '500px'
-          }
+        config={reportConfig}
+        setConfig={setReportConfig}
+        onSubmit={handleReportConfigSubmit}
+        colors={colors}
+        departments={departments}
+      />
+
+      <TicketDialog 
+        open={ticketDialogOpen}
+        onClose={() => {
+          setTicketDialogOpen(false);
+          setSelectedTicket(null);
         }}
-      >
-        <DialogTitle 
-          sx={{ 
-            color: colors.grey[100],
-            borderBottom: `1px solid ${colors.grey[800]}`,
-            padding: '20px 24px'
-          }}
-        >
-          Generate Violation Report
-        </DialogTitle>
+        ticket={selectedTicket}
+        colors={colors}
+      />
+    </Box>
+  );
+};
 
-        <DialogContent sx={{ padding: '24px' }}>
-          <Box
-            component="form"
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: 4
-            }}
-          >
-            {/* Department Selection */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: '200px', gap: 1 }}>
-              <Typography sx={{ color: colors.grey[100], fontWeight: 'bold', paddingTop: '8px', fontSize: '1rem' }}>
-                Department:
-              </Typography>
-              <Select
-                value={reportConfig.department}
-                onChange={(e) => setReportConfig(prev => ({ ...prev, department: e.target.value }))}
-                fullWidth
-                sx={{
-                  backgroundColor: colors.grey[800],
-                  color: colors.grey[100],
-                  '& .MuiSelect-icon': { color: colors.grey[100] }
+const TicketDialog = ({ open, onClose, ticket, colors }) => {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          backgroundColor: colors.primary[400],
+          backgroundImage: 'linear-gradient(rgba(255, 215, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 215, 0, 0.05) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
+          borderRadius: '12px'
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        borderBottom: `2px solid ${colors.grey[800]}`,
+        pb: 2,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Box>
+          <Typography variant="h5" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
+            Violation Ticket
+          </Typography>
+          <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+            Ticket No: {ticket?.violation_id}
+          </Typography>
+        </Box>
+        <IconButton onClick={onClose} sx={{ color: colors.grey[100] }}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ mt: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Image Preview Section */}
+          <Box sx={{ 
+            width: '100%',
+            height: '200px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: colors.grey[900],
+            borderRadius: '8px',
+            border: `1px solid ${colors.grey[800]}`
+          }}>
+            {ticket?.imageUrl ? (
+              <img
+                src={ticket.imageUrl}
+                alt="Violation capture"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  borderRadius: '8px'
                 }}
-              >
-                <MenuItem value="all">All Departments</MenuItem>
-                {departments.map(dept => (
-                  <MenuItem key={dept} value={dept}>{dept}</MenuItem>
-                ))}
-              </Select>
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+            ) : (
+              <Typography sx={{ 
+                color: colors.grey[500],
+                fontStyle: 'italic',
+                textAlign: 'center'
+              }}>
+                No image available for preview
+              </Typography>
+            )}
+          </Box>
+
+          {/* Existing ticket details */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Student Number
+              </Typography>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {ticket?.studentNumber}
+              </Typography>
             </Box>
 
-            {/* Date Range Selection */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 2, minWidth: '300px', gap: 1 }}>
-              <Typography sx={{ color: colors.grey[100], fontWeight: 'bold', fontSize: '1rem' }}>
-                Date Range:
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Student Name
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {/* Start Date */}
-                <Box sx={{ flex: 1, minWidth: '150px', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem' }}>Start:</Typography>
-                  <OutlinedInput
-                    type="date"
-                    fullWidth
-                    value={reportConfig.startDate}
-                    onChange={(e) => setReportConfig(prev => ({
-                      ...prev,
-                      startDate: e.target.value,
-                      endDate: e.target.value > prev.endDate ? e.target.value : prev.endDate
-                    }))}
-                    inputProps={{ 
-                      max: new Date().toISOString().split('T')[0] // Prevent future start date
-                    }}
-                    sx={{
-                      color: colors.grey[100],
-                      '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[400] },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] }
-                    }}
-                  />
-                </Box>
-                {/* End Date */}
-                <Box sx={{ flex: 1, minWidth: '150px', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem' }}>End:</Typography>
-                  <OutlinedInput
-                    type="date"
-                    fullWidth
-                    value={reportConfig.endDate}
-                    onChange={(e) => setReportConfig(prev => ({
-                      ...prev,
-                      endDate: e.target.value
-                    }))}
-                    inputProps={{ 
-                      min: reportConfig.startDate,
-                      max: new Date().toISOString().split('T')[0]  // Prevent future dates
-                    }}
-                    sx={{
-                      color: colors.grey[100],
-                      '& .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[400] },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: colors.grey[100] }
-                    }}
-                  />
-                </Box>
-
-              </Box>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {ticket?.name}
+              </Typography>
             </Box>
 
-            {/* Sorting Options */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: '300px', gap: 1 }}>
-              <Typography sx={{ color: colors.grey[100], fontWeight: 'bold', fontSize: '1rem', marginTop: '8px' }}>
-                Sort:
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Department
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {/* Sort By */}
-                <Box sx={{ flex: 1, minWidth: '140px' }}>
-                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem', marginBottom: '8px' }}>
-                    By:
-                  </Typography>
-                  <Select
-                    fullWidth
-                    value={reportConfig.sortBy}
-                    onChange={(e) => setReportConfig(prev => ({ ...prev, sortBy: e.target.value }))}
-                    sx={{
-                      backgroundColor: colors.grey[800],
-                      color: colors.grey[100],
-                      '& .MuiSelect-icon': { color: colors.grey[100] }
-                    }}
-                  >
-                    <MenuItem value="name">Student Name</MenuItem>
-                    <MenuItem value="program">Program</MenuItem>
-                    <MenuItem value="yearLevel">Year Level</MenuItem>
-                    <MenuItem value="violationCount">Violation Count</MenuItem>
-                    <MenuItem value="department">Department</MenuItem>
-                  </Select>
-                </Box>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {ticket?.department}
+              </Typography>
+            </Box>
 
-                {/* Sort Order */}
-                <Box sx={{ flex: 1, minWidth: '140px' }}>
-                  <Typography sx={{ color: colors.grey[100], fontSize: '0.875rem', marginBottom: '8px' }}>
-                    Order:
-                  </Typography>
-                  <Select
-                    fullWidth
-                    value={reportConfig.sortOrder}
-                    onChange={(e) => setReportConfig(prev => ({ ...prev, sortOrder: e.target.value }))}
-                    sx={{
-                      backgroundColor: colors.grey[800],
-                      color: colors.grey[100],
-                      '& .MuiSelect-icon': { color: colors.grey[100] }
-                    }}
-                  >
-                    <MenuItem value="asc">Ascending</MenuItem>
-                    <MenuItem value="desc">Descending</MenuItem>
-                  </Select>
-                </Box>
-              </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Program
+              </Typography>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {ticket?.program}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Year Level
+              </Typography>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {ticket?.yearLevel}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Violation
+              </Typography>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {ticket?.violation}
+              </Typography>
             </Box>
           </Box>
-        </DialogContent>
 
-
-        <DialogActions 
-          sx={{ 
-            padding: '16px 24px',
+          <Box sx={{ 
+            mt: 2, 
+            pt: 2, 
             borderTop: `1px solid ${colors.grey[800]}`,
-            gap: '12px'
-          }}
-        >
-          <Button 
-            onClick={() => {
-              setIsReportDialogOpen(false);
-              setReportConfig({
-                startDate: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                endDate: new Date().toISOString().split('T')[0],
-                department: 'all', 
-                reportType: 'detailed', 
-                sortBy: 'name',
-                sortOrder: 'asc'
-              });
-            }}
-            variant="outlined"
-            sx={{ 
-              color: colors.grey[100],
-              borderColor: colors.grey[700],
-              '&:hover': {
-                borderColor: colors.grey[500],
-                backgroundColor: colors.grey[800]
-              }
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleReportConfigSubmit}
-            variant="contained"
-            disabled={!reportConfig.startDate || !reportConfig.endDate || !reportConfig.department}
-            sx={{
-              backgroundColor: '#ffd700',
-              color: colors.grey[100],
-              fontWeight: 'bold',
-              '&:hover': {
-                backgroundColor: '#e6c200'
-              },
-              '&.Mui-disabled': {
-                backgroundColor: colors.grey[800],
-                color: colors.grey[600]
-              }
-            }}
-          >
-            Generate Report
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ color: colors.grey[300] }}>
+                Date Issued
+              </Typography>
+              <Typography sx={{ color: colors.grey[100], fontWeight: 'medium' }}>
+                {new Date(ticket?.date).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </DialogContent>
+    </Dialog>
   );
 };
 

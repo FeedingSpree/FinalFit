@@ -9,7 +9,17 @@ cred = credentials.Certificate(r"C:\Users\Jose Mari\Documents\C2\Firebase Privat
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-def generate_student_data(num_entries=50):
+def generate_violation_id(date_obj):
+    """Generate violation ID in format VIO+MMDDYY+4LETTERS"""
+    date_part = date_obj.strftime("%m%d%y")
+    letters = ''.join(random.choices(string.ascii_uppercase, k=4))
+    return f"VIO{date_part}{letters}"
+
+def generate_student_number():
+    """Generate a random 7-digit student number"""
+    return ''.join(random.choices(string.digits, k=7))
+
+def generate_student_data(num_entries=2):
     # Define data pools
     first_names = ["John", "Maria", "James", "Sarah", "Michael", "Emma", "David", "Sofia", "Daniel", "Olivia"]
     last_names = ["Garcia", "Santos", "Cruz", "Reyes", "Torres", "Lopez", "Rivera", "Gomez", "Flores", "Martinez"]
@@ -73,13 +83,20 @@ def generate_student_data(num_entries=50):
         date_obj = datetime(current_year, random_month, random_day)
         date_str = date_obj.strftime("%m-%d-%Y")
         
+        # Generate violation ID and student number
+        violation_id = generate_violation_id(date_obj)
+        student_number = generate_student_number()
+        
         entry = {
             "name": full_name,
             "program": program,
             "yearLevel": random.choice(year_levels),
             "violation": random.choice(violations),
             "date": date_str,
-            "department": department
+            "department": department,
+            "studentNumber": student_number,
+            "violation_id": violation_id,
+            "status": "Processed"  # Add status field
         }
         data.append(entry)
 
@@ -89,7 +106,7 @@ def upload_to_firestore(data, collection_name="studentrecords"):
     batch = db.batch()
     
     for entry in data:
-        doc_ref = db.collection(collection_name).document()
+        doc_ref = db.collection(collection_name).document(entry['violation_id'])
         batch.set(doc_ref, entry)
     
     # Commit the batch
@@ -99,7 +116,7 @@ def upload_to_firestore(data, collection_name="studentrecords"):
 if __name__ == "__main__":
     try:
         # Generate and upload data
-        student_data = generate_student_data(200)  # Generate 50 records
+        student_data = generate_student_data(200)
         upload_to_firestore(student_data)
         print("Data generation and upload completed successfully!")
     except Exception as e:

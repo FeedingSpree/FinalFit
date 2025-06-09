@@ -41,7 +41,7 @@ os.makedirs(FRAMES_DIR, exist_ok=True)
 # File paths
 model_path = r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\yolov11m.pt"
 video_path = r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\sleeveless_1.mp4"
-rtsp_url = "rtsp://admin:Test1234@192.168.7.73:554/onvif1"  # RTSP URL for camera
+rtsp_url = "rtsp://admin:Test1234@172.30.8.176:554/onvif1"  # RTSP URL for camera
 
 # Validate file existence
 if not os.path.exists(model_path):
@@ -148,18 +148,19 @@ CAMERA_CLASSES = {
         'non_violations': {2: "pe_unif_m"}
     },
     'camera5': {
-        # Easily modifiable configuration for RTSP camera
-        'detect': {
-            7: "Sleeveless",
-            8: "Cap",
-            9: "Shorts",
-            0: "reg_unif_m",
-            1: "reg_unif_f",
-            2: "pe_unif_m",
-            3: "pe_unif_f"
-        },
-        'violations': {7: "Sleeveless", 8: "Cap", 9: "Shorts"},
-        'non_violations': {0: "reg_unif_m", 1: "reg_unif_f", 2: "pe_unif_m", 3: "pe_unif_f"}
+        'detect': {3: "pe_unif_f"},  # Only detect female PE uniform
+        'violations': {},
+        'non_violations': {3: "pe_unif_f"}
+    },
+    'camera6': {
+        'detect': {1: "reg_unif_f"},  # Only detect female regular uniform
+        'violations': {},
+        'non_violations': {1: "reg_unif_f"}
+    },
+    'camera7': {
+        'detect': {8: "Cap", 0: "reg_unif_m"},  # Same as camera1
+        'violations': {8: "Cap"},  # Same as camera1
+        'non_violations': {0: "reg_unif_m"}  # Same as camera3
     }
 }
 
@@ -359,67 +360,54 @@ def process_frame(frame, current_time, frame_buffer, device, model, camera_id='c
 # Update handle_detection function to handle both violations and non-violations
 def handle_detection(cls, current_time, camera_id, confidence, frame):
     try:
-        if cls in VIOLATIONS or cls in NON_VIOLATIONS:
-            # Determine if it's a violation or non-violation
-            is_violation = cls in VIOLATIONS
-            detection_type = "violation" if is_violation else "non_violation"
-            detection_class = VIOLATIONS.get(cls) if is_violation else NON_VIOLATIONS.get(cls)
-            detection_id = generate_violation_id() if is_violation else generate_detection_id()
+        is_violation = cls in VIOLATIONS
+        detection_type = "violation" if is_violation else "non_violation"
+        detection_class = VIOLATIONS.get(cls) if is_violation else NON_VIOLATIONS.get(cls)
+        detection_id = generate_violation_id() if is_violation else generate_detection_id()
+        
+        try:
+            os.makedirs(FRAMES_DIR, exist_ok=True)
             
-            try:
-                # Ensure frames directory exists
-                os.makedirs(FRAMES_DIR, exist_ok=True)
-                
-                # Save frame locally with timestamp
-                timestamp = datetime.now().strftime("%H%M%S")
-                img_filename = f"{detection_id}_{timestamp}.jpg"
-                local_path = os.path.join(FRAMES_DIR, img_filename)
-                
-                # Save the image with lower quality
-                cv2.imwrite(local_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-                
-                # Get local URL for the frame
-                url = f"/frames/{img_filename}"
-                
-                # Create detection data based on type
-                if is_violation:
-                    detection_data = {
-                        "camera_number": camera_id,
-                        "date": current_time.strftime("%Y-%m-%d"),
-                        "time": current_time.strftime("%H:%M:%S"),
-                        "violation": detection_class,
-                        "violation_id": detection_id,
-                        "url": url,
-                        "status": "Pending",
-                        "confidence": round(confidence * 100, 2)
-                    }
-                else:
-                    detection_data = {
-                        "camera_number": camera_id,
-                        "date": current_time.strftime("%Y-%m-%d"),
-                        "time": current_time.strftime("%H:%M:%S"),
-                        "detection": detection_class,
-                        "detection_id": detection_id,
-                        "url": url,
-                        "status": "Detected",
-                        "confidence": round(confidence * 100, 2)
-                    }
-                
-                # Update latest detection
-                app.latest_detection = {
-                    "type": detection_type,
-                    "data": detection_data
-                }
-                
-                # Log the detection
-                logger.info(
-                    f"{detection_type.title()} detected: {detection_class} "
-                    f"(Confidence: {round(confidence * 100, 2)}%, Camera: {camera_id}, Image: {url})"
-                )
-                
-            except Exception as storage_error:
-                logger.error(f"Storage error: {storage_error}")
-                
+            # Save frame with timestamp
+            timestamp = datetime.now().strftime("%H%M%S")
+            img_filename = f"{detection_id}_{timestamp}.jpg"
+            local_path = os.path.join(FRAMES_DIR, img_filename)
+            cv2.imwrite(local_path, frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+            
+            url = f"/frames/{img_filename}"
+            
+            # Create detection data
+            detection_data = {
+                "camera_number": camera_id,
+                "date": current_time.strftime("%Y-%m-%d"),
+                "time": current_time.strftime("%H:%M:%S"),
+                "violation" if is_violation else "detection": detection_class,
+                "violation_id" if is_violation else "detection_id": detection_id,
+                "url": url,
+                "status": "Pending" if is_violation else "Detected",
+                "confidence": round(confidence * 100, 2)
+            }
+
+            # Store in appropriate collection
+            if is_violation:
+                db.collection('reviewlogs').document(detection_id).set(detection_data)
+            else:
+                db.collection('nonviolationlogs').document(detection_id).set(detection_data)
+            
+            # Update latest detection for frontend
+            app.latest_detection = {
+                "type": detection_type,
+                "data": detection_data
+            }
+            
+            logger.info(
+                f"{detection_type.title()} detected: {detection_class} "
+                f"(Confidence: {round(confidence * 100, 2)}%, Camera: {camera_id}, Image: {url})"
+            )
+            
+        except Exception as storage_error:
+            logger.error(f"Storage error: {storage_error}")
+            
     except Exception as e:
         logger.error(f"Error handling detection: {e}")
 
@@ -496,14 +484,14 @@ def generate_rtsp_frames():
                 frame = cv2.resize(frame, (854, 480))
                 
                 # Process frame with model
-                annotated_frame = process_frame(frame, current_time, frame_buffer, device, model, 'camera5')
+                annotated_frame = process_frame(frame, current_time, frame_buffer, device, model, 'camera7')
                 
                 # Encode frame
-                _, buffer = cv2.imencode('.jpg', annotated_frame)
-                frame_bytes = buffer.tobytes()
+                #_, buffer = cv2.imencode('.jpg', annotated_frame)
+                #frame_bytes = buffer.tobytes()
                 
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                #yield (b'--frame\r\n'
+                       #b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
                 
             except Exception as e:
                 logger.error(f"Error in RTSP frame generation: {str(e)}")
@@ -555,14 +543,106 @@ async def rtsp_stream():
             'Connection': 'keep-alive',
             'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
         }
-        return StreamingResponse(
-            generate_rtsp_frames(),
-            media_type="multipart/x-mixed-replace; boundary=frame",
-            headers=headers
-        )
+        
+        try:
+            # Test webcam access before returning stream
+            test_cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+            if not test_cap.isOpened():
+                raise Exception("Could not access webcam")
+            test_cap.release()
+            
+            return StreamingResponse(
+                generate_webcam_frames(1),
+                media_type="multipart/x-mixed-replace; boundary=frame",
+                headers=headers
+            )
+        except Exception as e:
+            logger.error(f"Webcam access error: {str(e)}")
+            # Return an error image if webcam is not accessible
+            error_frame = create_error_image("Camera not available")
+            _, buffer = cv2.imencode('.jpg', error_frame)
+            return StreamingResponse(
+                iter([b'--frame\r\n'
+                     b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n']),
+                media_type="multipart/x-mixed-replace; boundary=frame",
+                headers=headers
+            )
+            
     except Exception as e:
-        logger.error(f"Error in rtsp_stream: {str(e)}")
+        logger.error(f"Error in webcam stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Add new function for webcam streaming
+def generate_webcam_frames(camera_index=1):
+    frame_buffer = FrameBuffer()
+    webcam = None
+    
+    try:
+        # Initialize webcam with DirectShow backend
+        webcam = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+        
+        # Configure webcam settings
+        webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
+        webcam.set(cv2.CAP_PROP_FPS, 30)
+        webcam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        
+        if not webcam.isOpened():
+            logger.error(f"Could not open webcam at index {camera_index}")
+            raise Exception("Could not open webcam")
+        
+        logger.info(f"Webcam {camera_index} opened successfully")
+        
+        while True:
+            try:
+                current_time = datetime.now()
+                
+                # Update allowed violations in separate thread
+                if time.time() - frame_buffer.last_check_time > frame_buffer.check_interval:
+                    Thread(target=lambda: setattr(frame_buffer, 'allowed_violations', get_allowed_violations())).start()
+                    frame_buffer.last_check_time = time.time()
+                
+                success, frame = webcam.read()
+                if not success:
+                    logger.warning("Failed to read frame from webcam")
+                    continue
+                
+                if frame is None:
+                    continue
+                
+                # Resize frame for consistent processing
+                frame = cv2.resize(frame, (640, 640))
+                
+                # Process frame with model
+                annotated_frame = process_frame(frame, current_time, frame_buffer, device, model, 'camera7')
+                
+                if annotated_frame is None:
+                    continue
+                
+                # Resize for display
+                annotated_frame = cv2.resize(annotated_frame, (854, 480))
+                
+                # Encode frame
+                _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                frame_bytes = buffer.tobytes()
+                
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                
+                # Add a small delay to prevent high CPU usage
+                time.sleep(0.01)
+                
+            except Exception as e:
+                logger.error(f"Error in webcam frame generation: {str(e)}")
+                continue
+                
+    except Exception as e:
+        logger.error(f"Error initializing webcam: {str(e)}")
+        raise
+        
+    finally:
+        if webcam is not None:
+            webcam.release()
 
 @app.get("/status")
 async def status():
@@ -582,6 +662,8 @@ video_paths = {
     'camera2': r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\no_sleeves.mp4",
     'camera3': r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\unifm.mp4",
     'camera4': r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\male_pe.mp4",
+    'camera5': r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\fpeunif.mp4",
+    'camera6': r"C:\Users\Jose Mari\Documents\GitHub\c2-project-020325\src\model\fregunif.mp4",
 }
 
 # Add new endpoints for each camera
@@ -610,6 +692,20 @@ async def video_stream_camera3():
 async def video_stream_camera4():
     return StreamingResponse(
         generate_frames(video_paths['camera4'], 'camera4'),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.get("/api/stream/camera5")
+async def video_stream_camera5():
+    return StreamingResponse(
+        generate_frames(video_paths['camera5'], 'camera5'),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@app.get("/api/stream/camera6")
+async def video_stream_camera6():
+    return StreamingResponse(
+        generate_frames(video_paths['camera6'], 'camera6'),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 

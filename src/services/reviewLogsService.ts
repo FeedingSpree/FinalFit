@@ -19,12 +19,16 @@ export const addReviewLog = async (log: any) => {
             time: log.time,
             violation: log.violation,
             violation_id: log.violation_id,
-            status: log.status,
+            status: "Pending",
             url: log.url,
+            confidence: log.confidence
         };
         
-        await addDoc(collectionRef, reviewLog);
-        return reviewLog;
+        const docRef = await addDoc(collectionRef, reviewLog);
+        return {
+            id: docRef.id,
+            ...reviewLog
+        };
     } catch (error) {
         console.error("Error adding review log:", error);
         throw error;

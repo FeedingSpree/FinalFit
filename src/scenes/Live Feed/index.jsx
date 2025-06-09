@@ -34,7 +34,6 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, sele
   const playerRef = useRef(null);
   const { setIsFeedInitialized } = useDetection();
 
-  // Determine stream URL based on selected camera
   const getStreamUrl = () => {
     switch(selectedCamera) {
       case 1:
@@ -42,10 +41,14 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, sele
       case 2:
         return "http://localhost:5000/api/stream/camera2"; // sleeveless_1.mp4
       case 3:
-        return "http://localhost:5000/api/stream/camera3"; // sleeveless.mp4
+        return "http://localhost:5000/api/stream/camera3"; // unifm.mp4
       case 4:
-        return "http://localhost:5000/api/stream/camera4"; // sleeveless.mp4
+        return "http://localhost:5000/api/stream/camera4"; // male_pe.mp4
       case 5:
+        return "http://localhost:5000/api/stream/camera5"; // fpeunif.mp4
+      case 6:
+        return "http://localhost:5000/api/stream/camera6"; // fregunif.mp4
+      case 7:
         return "http://localhost:5000/api/rtsp-stream"; // RTSP stream
       default:
         return "http://localhost:5000/api/stream/camera1";
@@ -167,7 +170,7 @@ const LiveFeed = () => {
   const [showAlert, setShowAlertState] = useState(false);
   const [lastViolationCount, setLastViolationCount] = useState(0);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [selectedCamera, setSelectedCamera] = useState(1); // New state for camera selection
+  const [selectedCamera, setSelectedCamera] = useState(7); // New state for camera selection
   const [useRtsp, setUseRtsp] = useState(false); // Add useRtsp state
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -416,6 +419,8 @@ const LiveFeed = () => {
             <MenuItem value={3}>Camera 3</MenuItem>
             <MenuItem value={4}>Camera 4</MenuItem>
             <MenuItem value={5}>Camera 5</MenuItem>
+            <MenuItem value={6}>Camera 6</MenuItem>
+            <MenuItem value={7}>Camera 7</MenuItem>
           </Select>
         </FormControl>
 
@@ -441,11 +446,17 @@ const LiveFeed = () => {
             borderRadius: '8px',
             transition: 'all 0.3s ease',
             marginBottom: '20px',
-            animation: showAlert ? 'pulse 1.5s infinite' : 'none',
+            animation: showAlert ? 'pulse 2s infinite' : 'none',
             '@keyframes pulse': {
-              '0%': { boxShadow: '0 0 0 0 rgba(255, 0, 0, 0.4)' },
-              '70%': { boxShadow: '0 0 0 10px rgba(255, 0, 0, 0)' },
-              '100%': { boxShadow: '0 0 0 0 rgba(255, 0, 0, 0)' },
+              '0%': {
+                boxShadow: '0 0 0 0 rgba(255, 99, 71, 0.4)'
+              },
+              '70%': {
+                boxShadow: '0 0 0 10px rgba(255, 99, 71, 0)'
+              },
+              '100%': {
+                boxShadow: '0 0 0 0 rgba(255, 99, 71, 0)'
+              }
             },
           }}
           onClick={() => setOpenDialog(true)}
@@ -503,7 +514,7 @@ const LiveFeed = () => {
             borderRadius: '4px',
           },
         }}>
-          {[...violations.slice(-6)].reverse().map((violation) => (
+          {[...violations].reverse().slice(0, 5).map((violation) => (
             <Box
               key={violation.violation_id}
               sx={{
@@ -511,7 +522,20 @@ const LiveFeed = () => {
                 p: 2,
                 mb: 1,
                 borderRadius: '8px',
-                '&:last-child': { mb: 0 }
+                '&:last-child': { mb: 0 },
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: colors.grey[800],
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => {
+                if (violation.url) {
+                  const imageUrl = `http://localhost:5000${violation.url}`;
+                  setSelectedImage(imageUrl);
+                  setImageViewerOpen(true);
+                }
               }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -519,7 +543,7 @@ const LiveFeed = () => {
                   <Typography variant="subtitle2" sx={{ color: colors.grey[100] }}>
                     {violationTypeMap[violation.violation] || violation.violation}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: colors.grey[400] }}>
+                  <Typography variant="caption" sx={{ color: colors.grey[400], display: 'block' }}>
                     {new Date(`${violation.date}T${violation.time}`).toLocaleString('en-US', {
                       month: 'long',
                       day: 'numeric',
@@ -529,7 +553,24 @@ const LiveFeed = () => {
                       hour12: true
                     })}
                   </Typography>
+                  <Typography variant="caption" sx={{ color: colors.grey[400], display: 'block' }}>
+                    {violation.camera_number}
+                  </Typography>
                 </Box>
+                {violation.url && (
+                  <Button
+                    variant="text"
+                    size="small"
+                    sx={{
+                      color: '#ffd700',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)'
+                      }
+                    }}
+                  >
+                    View
+                  </Button>
+                )}
               </Box>
             </Box>
           ))}
@@ -579,118 +620,96 @@ const LiveFeed = () => {
         </DialogTitle>
 
         <DialogContent sx={{ p: 3 }}>
-          <List sx={{ py: 0 }}>
-            {[...violations]
-              .sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`))
-              .map((violation) => (
-                <ListItem
-                  key={violation.violation_id}
-                  sx={{
-                    backgroundColor: colors.grey[800],
-                    mb: 2,
-                    borderRadius: "8px",
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      backgroundColor: colors.grey[700],
-                      transform: 'translateY(-2px)',
-                      boxShadow: `0 4px 8px rgba(0,0,0,0.2)`
-                    },
-                    display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '16px'
-                  }}
-                >
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography 
-                        sx={{ 
-                          color: colors.grey[100],
-                          fontWeight: 'bold',
-                          fontSize: '1rem',
-                          mb: 0.5
-                        }}
-                      >
-                        {`${violationTypeMap[violation.violation] || 
-                          (violation.violation.charAt(0).toUpperCase() + violation.violation.slice(1))} Violation`}
-                      </Typography>
-
-                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          {violations.length > 0 ? (
+            <List sx={{ py: 0 }}>
+              {[...violations]
+                .sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`))
+                .map((violation) => (
+                  <ListItem
+                    key={violation.violation_id}
+                    sx={{
+                      backgroundColor: colors.grey[800],
+                      mb: 2,
+                      borderRadius: "8px",
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: colors.grey[700],
+                      },
+                      padding: '16px'
+                    }}
+                  >
+                    <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
                         <Typography 
                           sx={{ 
-                            color: colors.grey[400],
-                            fontSize: '0.875rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1
+                            color: colors.grey[100],
+                            fontWeight: 'bold',
+                            fontSize: '1rem',
+                            mb: 0.5
                           }}
                         >
-                          {violation.camera_number.replace(/([a-zA-Z]+)(\d+)/, (_, letters, numbers) => 
-                            `${letters.charAt(0).toUpperCase()}${letters.slice(1)} ${numbers}`
-                          )}
+                          {`${violationTypeMap[violation.violation] || violation.violation} Violation`}
                         </Typography>
-
-                        <Box 
-                          sx={{ 
-                            width: '4px', 
-                            height: '4px', 
-                            borderRadius: '50%', 
-                            backgroundColor: colors.grey[500] 
-                          }} 
-                        />
-
-                        <Typography sx={{ color: colors.grey[400], fontSize: '0.875rem' }}>
-                          {new Date(`${violation.date}T${violation.time}`).toLocaleString('en-US', {
-                            month: 'long',    
-                            day: 'numeric',  
-                            year: 'numeric', 
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}
-                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                          <Typography sx={{ color: colors.grey[400], fontSize: '0.875rem' }}>
+                            {violation.camera_number}
+                          </Typography>
+                          <Box 
+                            sx={{ 
+                              width: '4px', 
+                              height: '4px', 
+                              borderRadius: '50%', 
+                              backgroundColor: colors.grey[500] 
+                            }} 
+                          />
+                          <Typography sx={{ color: colors.grey[400], fontSize: '0.875rem' }}>
+                            {new Date(`${violation.date}T${violation.time}`).toLocaleString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
+                          </Typography>
+                        </Box>
                       </Box>
+                      {violation.url && (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => {
+                            const imageUrl = `http://localhost:5000${violation.url}`;
+                            setSelectedImage(imageUrl);
+                            setImageViewerOpen(true);
+                          }}
+                          sx={{
+                            backgroundColor: '#ffd700',
+                            color: colors.grey[100],
+                            fontWeight: 'bold',
+                            '&:hover': {
+                              backgroundColor: '#e6c200'
+                            }
+                          }}
+                        >
+                          View Image
+                        </Button>
+                      )}
                     </Box>
-
-                    {violation.url && (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        onClick={() => {
-                          const imageUrl = `http://localhost:5000${violation.url}`;
-                          setSelectedImage(imageUrl);
-                          setImageViewerOpen(true);
-                        }}
-                        sx={{
-                          backgroundColor: '#ffd700',
-                          color: colors.grey[100],
-                          fontWeight: 'bold',
-                          '&:hover': {
-                            backgroundColor: '#ffd700'
-                          }
-                        }}
-                      >
-                        View
-                      </Button>
-                    )}
-                  </Box>
-                </ListItem>
-              ))}
-          </List>
-
-          {violations.length === 0 && (
+                  </ListItem>
+                ))}
+            </List>
+          ) : (
             <Box 
               sx={{ 
                 textAlign: 'center', 
                 py: 4,
                 backgroundColor: colors.grey[800],
-                borderRadius: '8px',
-                mt: 2
+                borderRadius: '8px'
               }}
             >
               <Typography color={colors.grey[100]}>
-                No violations found in the selected time period
+                No violations detected in the last hour
               </Typography>
             </Box>
           )}

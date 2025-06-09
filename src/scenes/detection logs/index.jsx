@@ -431,7 +431,7 @@ const AuditLogs = () => {
       renderCell: ({ value }) => {
         let backgroundColor;
         switch (value?.toLowerCase()) {
-          case 'approved':
+          case 'processed':
             backgroundColor = '#4caf50'; // green
             break;
           case 'pending':
@@ -498,7 +498,7 @@ const AuditLogs = () => {
                   fontWeight: 'medium'
                 }}
               >
-                View Image
+                Process Violation
               </Typography>
             )}
           </Box>
@@ -824,6 +824,7 @@ const AuditLogs = () => {
         currentViolation={currentViolation}
         onDelete={handleDelete}
         fetchLogs={fetchLogs}
+        isViolation={activeTable === 'violations'} // Add this prop
       />
     </Box>
   );
@@ -875,250 +876,84 @@ const ImageViewerDialog = ({
   currentViolation, 
   onDelete,
   fetchLogs,
-  formData
+  isViolation = true // Add this prop to determine the type
 }) => {
   const [loadError, setLoadError] = useState(false);
-  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
-
-  const handleConfirmDelete = () => {
-    onDelete(currentViolation);
-    setConfirmDeleteOpen(false);
-  };
-
-  return (
-    <>
-      <Dialog
-        open={open}
-        onClose={onClose}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: {
-            backgroundColor: colors.grey[900],
-            maxHeight: '90vh'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          color: colors.grey[100],
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <Typography variant="h6">Violation Capture</Typography>
-          <Box>
-            <Button
-              variant="contained"
-              startIcon={<CheckIcon />}
-              onClick={() => setApprovalDialogOpen(true)}
-              disabled={currentViolation?.status === 'Approved'}
-              sx={{
-                backgroundColor: currentViolation?.status === 'Approved' 
-                  ? colors.grey[700] 
-                  : colors.greenAccent[600],
-                color: colors.grey[100],
-                marginRight: 2,
-                fontWeight: 'bold',
-                '&:hover': {
-                  backgroundColor: currentViolation?.status === 'Approved'
-                    ? colors.grey[700]
-                    : colors.greenAccent[700]
-                },
-                '&.Mui-disabled': {
-                  backgroundColor: colors.grey[700],
-                  color: colors.grey[500]
-                }
-              }}
-            >
-              Approve
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<DeleteIcon />}
-              onClick={() => setConfirmDeleteOpen(true)}
-              disabled={currentViolation?.status === 'Approved'}
-              sx={{
-                backgroundColor: currentViolation?.status === 'Approved'
-                  ? colors.grey[700]
-                  : colors.redAccent[600],
-                color: colors.grey[100],
-                marginRight: 2,
-                fontWeight: 'bold',
-                '&:hover': {
-                  backgroundColor: currentViolation?.status === 'Approved'
-                    ? colors.grey[700]
-                    : colors.redAccent[700]
-                },
-                '&.Mui-disabled': {
-                  backgroundColor: colors.grey[700],
-                  color: colors.grey[500]
-                }
-              }}
-            >
-              Remove
-            </Button>
-            <IconButton
-              onClick={onClose}
-              sx={{ color: colors.grey[100] }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Box
-            sx={{
-              width: '100%',
-              height: '70vh',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            {loadError ? (
-              <Typography color="error">
-                Failed to load image. Please try again.
-              </Typography>
-            ) : (
-              <img
-                src={imageUrl}
-                alt="Violation capture"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain'
-                }}
-                onError={() => setLoadError(true)}
-                onLoad={() => setLoadError(false)}
-              />
-            )}
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      <ApprovalDialog
-        open={approvalDialogOpen}
-        onClose={() => setApprovalDialogOpen(false)}
-        violation={currentViolation?.violation}
-        onSubmit={async (formData) => {
-          try {
-            const [year, month, day] = formData.date.split('-');
-            const formattedData = {
-              ...formData,
-              violation: currentViolation.violation.charAt(0).toUpperCase() + currentViolation.violation.slice(1),
-              date: currentViolation.date.split("-").slice(1).concat(currentViolation.date.split("-")[0]).join("-")
-            }
-            // Create student record
-            //const studentRecord = {
-              //name: formData.name,
-              //department: formData.department,
-              //program: formData.program,
-              //yearLevel: formData.yearLevel,
-              //violation: currentViolation.violation,
-              //date: currentViolation.date,
-              //time: currentViolation.time,
-              //local_image_url: currentViolation.local_image_url
-            //};
-
-            // Add to student records
-            await addStudentRecord(formattedData);
-
-            // Update review log status
-            await updateReviewLog(currentViolation.id, {
-              //...formData,
-              status: 'Approved'
-            });
-
-            // Refresh the logs to show updated status
-            await fetchLogs();
-
-            // Close both dialogs
-            setApprovalDialogOpen(false);
-            //setImageViewerOpen(false);
-            onClose();
-
-          } catch (error) {
-            console.error('Error processing approval:', error);
-            // You might want to add error handling here
-          }
-        }}
-      />
-
-      <ConfirmDeleteDialog
-        open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
-        onConfirm={handleConfirmDelete}
-        colors={colors}
-      />
-    </>
-  );
-};
-
-const ApprovalDialog = ({ open, onClose, onSubmit, violation }) => {
-  const theme = useTheme();
-  const colors = tokens(theme.palette.mode);
-
   const [formData, setFormData] = useState({
+    studentNumber: '',
     name: '',
     department: '',
     program: '',
     yearLevel: '',
-    violation: violation || '',
+    violation: currentViolation?.violation || '',
     date: new Date().toISOString().split('T')[0]
   });
-  
   const [formErrors, setFormErrors] = useState({});
 
   const validateName = (name) => /^[A-Za-z\s]+$/.test(name);
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-
-    // Clear errors as user types
-    setFormErrors((prev) => ({
+    setFormErrors(prev => ({
       ...prev,
       [field]: ''
     }));
 
-    if (field === 'name' && !validateName(value)) {
-      setFormErrors((prev) => ({
-        ...prev,
-        name: 'Only letters and spaces are allowed'
-      }));
+    if (field === 'studentNumber') {
+      if (!value) {
+        setFormErrors(prev => ({
+          ...prev,
+          studentNumber: 'Student number is required'
+        }));
+      } else if (!validateStudentNumber(value)) {
+        setFormErrors(prev => ({
+          ...prev,
+          studentNumber: 'Student number must be exactly 7 digits'
+        }));
+      }
+    }
+
+    if (field === 'name') {
+      if (!value) {
+        setFormErrors(prev => ({
+          ...prev,
+          name: 'Student name is required'
+        }));
+      } else if (!validateStudentName(value)) {
+        setFormErrors(prev => ({
+          ...prev,
+          name: 'Enter complete name (e.g., Juan Dela Cruz)'
+        }));
+      }
     }
   };
 
   const handleDepartmentChange = (e) => {
     const department = e.target.value;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
       department,
       program: ''
     }));
-    setFormErrors((prev) => ({
+    setFormErrors(prev => ({
       ...prev,
       department: '',
       program: ''
     }));
   };
 
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      violation: violation || ''
-    }));
-  }, [violation]);
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     let errors = {};
 
-    // Validate all required fields
+    if (!formData.studentNumber || !formData.studentNumber.trim()) {
+      errors.studentNumber = 'Student number is required';
+    }
     if (!formData.name || !validateName(formData.name)) {
       errors.name = 'Enter a valid name (letters and spaces only)';
     }
@@ -1129,218 +964,361 @@ const ApprovalDialog = ({ open, onClose, onSubmit, violation }) => {
 
     setFormErrors(errors);
 
-    // If no errors, submit the form
     if (Object.keys(errors).length === 0) {
-      onSubmit(formData);
-      onClose();
+      try {
+        const formattedData = {
+          ...formData,
+          violation: currentViolation.violation.charAt(0).toUpperCase() + currentViolation.violation.slice(1),
+          date: currentViolation.date.split("-").slice(1).concat(currentViolation.date.split("-")[0]).join("-"),
+          violation_id: currentViolation.violation_id,
+          imageUrl: `http://localhost:5000${currentViolation.url}`
+        };
+
+        await addStudentRecord(formattedData);
+        await updateReviewLog(currentViolation.id, { status: 'Processed' });
+        await fetchLogs();
+        onClose();
+      } catch (error) {
+        console.error('Error processing approval:', error);
+      }
     }
   };
 
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ color: colors.grey[100] }}>Student Details</DialogTitle>
-      <DialogContent>
-        <Box
-          component="form"
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            padding: '10px',
-            '& .form-row': {
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1
-            },
-            '& .form-field': {
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 2,
-              minWidth: '500px'
-            },
-            '& .form-label': {
-              minWidth: '120px',
-              textAlign: 'left',
-              paddingTop: '8px'
-            },
-            '& .form-input': {
-              flex: 1,
-              minWidth: '350px'
-            },
-            '& .error-text': {
-              marginLeft: 'calc(120px + 16px)',
-              fontSize: '0.75rem'
-            }
-          }}
-          noValidate
-          autoComplete="off"
+return (
+  <>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={isViolation ? "xl" : "md"}
+      fullWidth
+      PaperProps={{
+        sx: {
+          backgroundColor: colors.grey[900],
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column'
+        }
+      }}
+    >
+      <DialogTitle
+        sx={{
+          color: colors.grey[100],
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: `1px solid ${colors.grey[800]}`,
+          px: 3,
+          py: 2
+        }}
+      >
+        <Typography variant="h6">
+          {isViolation ? "Captured Violation" : "Captured Detection"}
+        </Typography>
+        <IconButton
+          onClick={onClose}
+          sx={{ color: colors.grey[100] }}
         >
-          {/* Name */}
-          <div className="form-row">
-            <div className="form-field">
-              <Typography className="form-label" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
-                Student Name *
-              </Typography>
-              <OutlinedInput
-                className="form-input"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Enter student name"
-                error={!!formErrors.name}
-              />
-            </div>
-            {formErrors.name && (
-              <Typography className="error-text" color="error" variant="caption">
-                {formErrors.name}
-              </Typography>
-            )}
-          </div>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
 
-          {/* Department */}
-          <div className="form-row">
-            <div className="form-field">
-              <Typography className="form-label" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
-                Department *
-              </Typography>
-              <Select
-                className="form-input"
-                value={formData.department}
-                onChange={handleDepartmentChange}
-                error={!!formErrors.department}
-              >
-                {departments.map((dept) => (
-                  <MenuItem key={dept} value={dept}>
-                    {dept}
-                  </MenuItem>
-                ))}
-              </Select>
-            </div>
-            {formErrors.department && (
-              <Typography className="error-text" color="error" variant="caption">
-                {formErrors.department}
-              </Typography>
-            )}
-          </div>
-
-          {/* Program */}
-          <div className="form-row">
-            <div className="form-field">
-              <Typography className="form-label" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
-                Program *
-              </Typography>
-              <Select
-                className="form-input"
-                value={formData.program}
-                onChange={(e) => handleInputChange('program', e.target.value)}
-                error={!!formErrors.program}
-                disabled={!formData.department}
-              >
-                {formData.department &&
-                  programs[formData.department].map((prog) => (
-                    <MenuItem key={prog} value={prog}>
-                      {prog}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </div>
-            {formErrors.program && (
-              <Typography className="error-text" color="error" variant="caption">
-                {formErrors.program}
-              </Typography>
-            )}
-          </div>
-
-          {/* Year Level */}
-          <div className="form-row">
-            <div className="form-field">
-              <Typography className="form-label" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
-                Year Level *
-              </Typography>
-              <Select
-                className="form-input"
-                value={formData.yearLevel}
-                onChange={(e) => handleInputChange('yearLevel', e.target.value)}
-                error={!!formErrors.yearLevel}
-              >
-                {yearLevel.map((year) => (
-                  <MenuItem key={year} value={year}>
-                    {year}
-                  </MenuItem>
-                ))}
-              </Select>
-            </div>
-            {formErrors.yearLevel && (
-              <Typography className="error-text" color="error" variant="caption">
-                {formErrors.yearLevel}
-              </Typography>
-            )}
-          </div>
-
-          {/* Violation (Read-only) */}
-          <div className="form-row">
-            <div className="form-field">
-              <Typography className="form-label" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
-                Violation *
-              </Typography>
-              <Select
-                className="form-input"
-                value={formData.violation}
-                disabled
-              >
-                <MenuItem value={formData.violation}>{formData.violation}</MenuItem>
-              </Select>
-            </div>
-          </div>
-
-          {/* Date */}
-          <div className="form-row">
-            <div className="form-field">
-              <Typography className="form-label" sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
-                Date *
-              </Typography>
-              <OutlinedInput
-                className="form-input"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
-                error={!!formErrors.date}
-              />
-            </div>
-            {formErrors.date && (
-              <Typography className="error-text" color="error" variant="caption">
-                {formErrors.date}
-              </Typography>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
-            <Button variant="outlined" onClick={onClose}
-            sx={{
-              color: colors.grey[100],
-              fontWeight: 'bold',
-              '&:hover': {
-                backgroundColor: colors.grey[800]
-              }
-            }}
-            >
-              Cancel
-            </Button>
-            <Button variant="contained" onClick={handleSubmit} 
-            sx ={{
-              backgroundColor: '#ffd700',
-              color: colors.grey[100],
-              fontWeight: 'bold',
-              '&:hover': {
-                backgroundColor: colors.greenAccent[700]
-              }
-            }}>
-              Submit
-            </Button>
-          </Box>
+      <DialogContent
+        sx={{
+          display: 'flex',
+          flexDirection: isViolation ? 'row' : 'column',
+          gap: 2,
+          p: 3,
+        }}
+      >
+        {/* Image Display */}
+        <Box sx={{ 
+          flex: isViolation ? 2 : 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...(isViolation && { borderRight: `1px solid ${colors.grey[800]}` })
+        }}>
+          {loadError ? (
+            <Typography color="error">
+              Failed to load image. Please try again.
+            </Typography>
+          ) : (
+            <img
+              src={imageUrl}
+              alt="Detection capture"
+              style={{
+                maxWidth: '100%',
+                maxHeight: isViolation ? '90%' : '70vh',
+                objectFit: 'contain'
+              }}
+              onError={() => setLoadError(true)}
+              onLoad={() => setLoadError(false)}
+            />
+          )}
         </Box>
+
+        {/* Conditional Student Details Form */}
+        {isViolation && (
+          <Box
+            sx={{
+              flex: 1,
+              backgroundColor: colors.grey[900],
+              overflowY: 'auto'
+            }}
+          >
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Ticket Number Field (Non-editable) */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, paddingTop: 2 }}>
+                <Typography sx={{ color: colors.grey[100], fontWeight: 'bold' }}>
+                  Ticket Number:
+                </Typography>
+                <Typography sx={{ color: colors.grey[100] }}>
+                  {currentViolation?.violation_id || 'N/A'}
+                </Typography>
+              </Box>
+
+
+              {/* Student Number Input */}
+              <Box>
+                <Typography sx={{ color: colors.grey[100], mb: 1, fontWeight: 'bold' }}>
+                  Student Number *
+                </Typography>
+                <OutlinedInput
+                  fullWidth
+                  value={formData.studentNumber || ''}
+                  onChange={(e) => {
+                    // Only allow numbers
+                    const value = e.target.value.replace(/[^\d]/g, '');
+                    // Limit to 7 digits
+                    if (value.length <= 7) {
+                      handleInputChange('studentNumber', value);
+                    }
+                  }}
+                  placeholder="Enter 7-digit student number"
+                  error={!!formErrors.studentNumber}
+                  inputProps={{
+                    maxLength: 7,
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*'
+                  }}
+                  sx={{
+                    backgroundColor: colors.primary[400],
+                    borderRadius: '4px',
+                    '& .MuiOutlinedInput-input': { color: colors.grey[100] }
+                  }}
+                />
+                {formErrors.studentNumber && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.studentNumber}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Existing Name Input */}
+              <Box>
+                <Typography sx={{ color: colors.grey[100], mb: 1, fontWeight: 'bold' }}>
+                  Student Name *
+                </Typography>
+                <OutlinedInput
+                  fullWidth
+                  value={formData.name}
+                  onChange={(e) => {
+                    // Only allow letters and spaces
+                    const value = e.target.value.replace(/[^A-Za-z\s]/g, '');
+                    handleInputChange('name', value);
+                  }}
+                  placeholder="Enter complete name"
+                  error={!!formErrors.name}
+                  sx={{
+                    backgroundColor: colors.primary[400],
+                    borderRadius: '4px',
+                    '& .MuiOutlinedInput-input': { color: colors.grey[100] }
+                  }}
+                />
+                {formErrors.name && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.name}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Department Select */}
+              <Box>
+                <Typography sx={{ color: colors.grey[100], mb: 1, fontWeight: 'bold' }}>
+                  Department *
+                </Typography>
+                <Select
+                  fullWidth
+                  value={formData.department}
+                  onChange={handleDepartmentChange}
+                  error={!!formErrors.department}
+                  sx={{
+                    backgroundColor: colors.primary[400],
+                    color: colors.grey[100]
+                  }}
+                >
+                  {departments.map((dept) => (
+                    <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                  ))}
+                </Select>
+                {formErrors.department && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.department}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Program Select */}
+              <Box>
+                <Typography sx={{ color: colors.grey[100], mb: 1, fontWeight: 'bold' }}>
+                  Program *
+                </Typography>
+                <Select
+                  fullWidth
+                  value={formData.program}
+                  onChange={(e) => handleInputChange('program', e.target.value)}
+                  error={!!formErrors.program}
+                  disabled={!formData.department}
+                  sx={{
+                    backgroundColor: colors.primary[400],
+                    color: colors.grey[100]
+                  }}
+                >
+                  {formData.department &&
+                    programs[formData.department].map((prog) => (
+                      <MenuItem key={prog} value={prog}>{prog}</MenuItem>
+                    ))}
+                </Select>
+                {formErrors.program && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.program}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Year Level Select */}
+              <Box>
+                <Typography sx={{ color: colors.grey[100], mb: 1, fontWeight: 'bold' }}>
+                  Year Level *
+                </Typography>
+                <Select
+                  fullWidth
+                  value={formData.yearLevel}
+                  onChange={(e) => handleInputChange('yearLevel', e.target.value)}
+                  error={!!formErrors.yearLevel}
+                  sx={{
+                    backgroundColor: colors.primary[400],
+                    color: colors.grey[100]
+                  }}
+                >
+                  {yearLevel.map((year) => (
+                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                  ))}
+                </Select>
+                {formErrors.yearLevel && (
+                  <Typography color="error" variant="caption">
+                    {formErrors.yearLevel}
+                  </Typography>
+                )}
+              </Box>
+
+              {/* Action Buttons */}
+              <Box sx={{
+                display: 'flex',
+                gap: 2,
+                mt: 2,
+                borderTop: `1px solid ${colors.grey[800]}`,
+                pt: 3
+              }}>
+                <Button
+                  variant="contained"
+                  startIcon={<CheckIcon />}
+                  onClick={handleSubmit}
+                  disabled={
+                    currentViolation?.status === 'Processed' || 
+                    !isFormValid(formData)
+                  }
+                  sx={{
+                    flex: 1,
+                    backgroundColor: !isFormValid(formData) 
+                      ? colors.grey[700] 
+                      : '#ffd700',
+                    color: colors.grey[100],
+                    fontWeight: 'bold',
+                    '&:hover': {
+                      backgroundColor: !isFormValid(formData) 
+                        ? colors.grey[700] 
+                        : '#e6c200'
+                    },
+                    '&.Mui-disabled': {
+                      backgroundColor: colors.grey[700],
+                      color: colors.grey[500]
+                    }
+                  }}
+                >
+                  Submit to OSA
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={currentViolation?.status === 'Processed'}
+                  sx={{
+                    flex: 1,
+                    backgroundColor: currentViolation?.status === 'Processed'
+                      ? colors.grey[700]
+                      : colors.redAccent[600],
+                    color: colors.grey[100],
+                    fontWeight: 'bold',
+                    '&:hover': {
+                      backgroundColor: colors.redAccent[700]
+                    }
+                  }}
+                >
+                  Remove
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+        )}
       </DialogContent>
     </Dialog>
+
+    {isViolation && (
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        onConfirm={() => {
+          onDelete(currentViolation);
+          setConfirmDeleteOpen(false);
+        }}
+        colors={colors}
+      />
+    )}
+  </>
+);
+};
+
+const validateStudentNumber = (number) => {
+  const studentNumberRegex = /^\d{7}$/;  // Exactly 7 digits
+  return studentNumberRegex.test(number);
+};
+
+const validateStudentName = (name) => {
+  // Only letters and spaces, at least 2 words (first and last name)
+  const nameRegex = /^[A-Za-z]+(?:\s[A-Za-z]+)+$/;
+  return nameRegex.test(name);
+};
+
+const isFormValid = (formData) => {
+  return (
+    formData.studentNumber && 
+    validateStudentNumber(formData.studentNumber) &&
+    formData.name && 
+    validateStudentName(formData.name) &&
+    formData.department && 
+    formData.program && 
+    formData.yearLevel
   );
 };
 

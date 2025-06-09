@@ -9,7 +9,10 @@ export const addStudentRecord = async (log: {
     yearLevel: string;
     violation: string;
     date: string;
-    department: string;
+    department: string; 
+    studentNumber: string;
+    violation_id: string;
+    imageUrl: string;
 }) => {
     try {
         await addDoc(studentRecordsCollectionRef, log);

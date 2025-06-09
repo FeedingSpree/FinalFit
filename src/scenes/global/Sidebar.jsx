@@ -219,7 +219,7 @@ const Sidebar = ({ isSidebar }) => {
       //{ title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
       { title: "Users", to: "/users", icon: <PeopleOutlinedIcon /> },
       { title: "Policies", to: "/policies", icon: <ContactsOutlinedIcon /> },
-      { title: "Detections", to: "/detectionlogs", icon: <ReceiptOutlinedIcon />, count: pendingCount },
+      //{ title: "Detections", to: "/detectionlogs", icon: <ReceiptOutlinedIcon />, count: pendingCount },
       { title: "Violations", to: "/violations", icon: <HistoryEduOutlinedIcon /> },
       { title: "Audit Trails", to: "/audittrails", icon: <RecentActorsOutlinedIcon /> },
       { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
@@ -227,6 +227,7 @@ const Sidebar = ({ isSidebar }) => {
     ],
     SOHAS: [
       { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
+      { title: "Detections", to: "/detectionlogs", icon: <ReceiptOutlinedIcon />, count: pendingCount },
       //{ title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
       { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
     ]
