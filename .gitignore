@@ -8,7 +8,11 @@
 
 # production
 /build
-
+/src/model/.venv
+/src/model/.venv1
+/src/model/__pycache__
+/src/model/frames
+/src/model/static
 # misc
 .DS_Store
 .env.local

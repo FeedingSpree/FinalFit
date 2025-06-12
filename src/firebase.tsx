@@ -7,25 +7,26 @@ import { getAuth } from "firebase/auth";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyDZsJyoAGQ87w3mUK-JfKIAvm5LOLQ8po4",
-  authDomain: "campusfit-8468c.firebaseapp.com",
-  projectId: "campusfit-8468c",
-  storageBucket: "campusfit-8468c.firebasestorage.app",
-  messagingSenderId: "266601164096",
-  appId: "1:266601164096:web:b1e9b629c531ff21ef1ea5",
-  measurementId: "G-M354MF7T5R"
+  apiKey: "AIzaSyDzMzh05dp0Fc9nZaVFQhDOl81w7jDSH4o",
+  authDomain: "campusfit-557ab.firebaseapp.com",
+  projectId: "campusfit-557ab",
+  storageBucket: "campusfit-557ab.firebasestorage.app",
+  messagingSenderId: "676710185021",
+  appId: "1:676710185021:web:31dd093cd6a0dc64645254",
+  measurementId: "G-HHSBDQGG6V"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const firebaseConfig2 = {
-  apiKey: "AIzaSyDfxJwzQJnVGHDKgm_24YnXrjFrfLXCCJw",
-  authDomain: "c2-collider.firebaseapp.com",
-  projectId: "c2-collider",
-  storageBucket: "c2-collider.firebasestorage.app",
-  messagingSenderId: "479238667455",
-  appId: "1:479238667455:web:2c0a916065060870deda0a"
+  apiKey: "AIzaSyCqiknxbbZZbAYXMdAgLmAJj2kTYrgVyC8",
+  authDomain: "collider-8069d.firebaseapp.com",
+  projectId: "collider-8069d",
+  storageBucket: "collider-8069d.firebasestorage.app",
+  messagingSenderId: "423101038207",
+  appId: "1:423101038207:web:322323fc8087b0d38c894a",
+  measurementId: "G-PQJ1DK1KJR"
 };
 
 const app2 = initializeApp(firebaseConfig2, "secondary");

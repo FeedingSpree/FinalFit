@@ -596,28 +596,45 @@ const ViolationHandling = () => {
   }, [allRecords, dateFilter, filterModel]);
 
   useEffect(() => {
-    const fetchRecords = async () => {
-      try {
-        setIsLoading(true);
-        const fetchedRecords = await getStudentRecords();
-        // Sort records by date in descending order
-        const sortedRecords = [...fetchedRecords].sort((a, b) => {
+  const fetchRecords = async () => {
+    try {
+      setIsLoading(true);
+      const fetchedRecords = await getStudentRecords();
+      
+      // Filter out records with invalid dates and sort records by date in descending order
+      const validRecords = fetchedRecords.filter(record => 
+        record.date && typeof record.date === 'string' && record.date.trim() !== ''
+      );
+      
+      const sortedRecords = [...validRecords].sort((a, b) => {
+        try {
+          // Handle the date parsing more safely
           const dateA = new Date(a.date.split('-').reverse().join('-'));
           const dateB = new Date(b.date.split('-').reverse().join('-'));
+          
+          // Check if dates are valid
+          if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+            return 0; // Keep original order if dates are invalid
+          }
+          
           return dateB - dateA;  // Sort in descending order
-        });
-        
-        setAllRecords(sortedRecords);
-        setRecords(sortedRecords);
-      } catch (error) {
-        console.error("Error fetching records:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        } catch (error) {
+          console.warn('Error parsing date for record:', { a: a.date, b: b.date });
+          return 0; // Keep original order if there's an error
+        }
+      });
+      
+      setAllRecords(sortedRecords);
+      setRecords(sortedRecords);
+    } catch (error) {
+      console.error("Error fetching records:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchRecords();
-  }, []);
+  fetchRecords();
+}, []);
 
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportConfig, setReportConfig] = useState({
