@@ -7,9 +7,9 @@ import {
     doc,
     Timestamp,
 } from "firebase/firestore";
-import { db2 } from "../firebase.tsx";
+import { db } from "../firebase.tsx";
 
-const collectionRef = collection(db2, "reviewlogs");
+const collectionRef = collection(db, "reviewlogs");
 
 export const addReviewLog = async (log: any) => {
     try {
@@ -48,13 +48,13 @@ export const getReviewLogs = async () => {
 };
 
 export const updateReviewLog = async (id: string, updatedLog: any) => {
-    const logRef = doc(db2, "reviewlogs", id);
+    const logRef = doc(db, "reviewlogs", id);
     await updateDoc(logRef, {
         ...updatedLog
     });
 };
 
 export const deleteReviewLog = async (id: string) => {
-    await deleteDoc(doc(db2, "reviewlogs", id));
+    await deleteDoc(doc(db, "reviewlogs", id));
 };
 

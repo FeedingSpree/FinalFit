@@ -5,13 +5,13 @@ import { initializeApp } from "firebase/app";
 
 // Your web app's Firebase configuration
 const firebaseConfig2 = {
-  apiKey: "AIzaSyCqiknxbbZZbAYXMdAgLmAJj2kTYrgVyC8",
-  authDomain: "collider-8069d.firebaseapp.com",
-  projectId: "collider-8069d",
-  storageBucket: "collider-8069d.firebasestorage.app",
-  messagingSenderId: "423101038207",
-  appId: "1:423101038207:web:322323fc8087b0d38c894a",
-  measurementId: "G-PQJ1DK1KJR"
+  apiKey: "AIzaSyDzMzh05dp0Fc9nZaVFQhDOl81w7jDSH4o",
+  authDomain: "campusfit-557ab.firebaseapp.com",
+  projectId: "campusfit-557ab",
+  storageBucket: "campusfit-557ab.firebasestorage.app",
+  messagingSenderId: "676710185021",
+  appId: "1:676710185021:web:31dd093cd6a0dc64645254",
+  measurementId: "G-HHSBDQGG6V"
 };
 
 // Initialize Firebase

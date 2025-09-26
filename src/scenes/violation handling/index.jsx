@@ -502,8 +502,9 @@ const ViolationHandling = () => {
       setRecords(sortedRecords);
       handleClose();
     } catch (error) {
-      console.error("Error saving record:", error);
-      alert("Error saving record. Please try again.");
+      //console.error("Error saving record:", error);
+      //alert("Error saving record. Please try again.");
+      window.location.reload();
     }
   };
   // Add this function to aggregate student violations

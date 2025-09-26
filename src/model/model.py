@@ -1,3 +1,4 @@
+#model.py
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +25,7 @@ import shutil
 # Initialize Firebase Admin SDK (only if not already initialized)
 if not firebase_admin._apps:
     try:
-        cred = credentials.Certificate(r"C:\Users\Fred\Downloads\c2-project-020325\c2-project-020325\src\model\campusfit-8468c-firebase-adminsdk-fbsvc-f90c6530de.json")
+        cred = credentials.Certificate(r"C:\Users\Fred\Downloads\c2-project-020325\c2-project-020325\src\model\campusfit-557ab-firebase-adminsdk-fbsvc-1eb3edef87.json")
         firebase_admin.initialize_app(cred)
         print("Firebase initialized successfully")
     except Exception as e:
@@ -103,16 +104,27 @@ try:
     logger.info(f"CUDA available: {cuda_available}")
     if cuda_available:
         logger.info(f"Current CUDA device: {torch.cuda.get_device_name(0)}")
+        logger.info(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
 
     # Load model
     if os.path.exists(model_path):
         logger.info("Loading YOLO model...")
         model = YOLO(model_path)
-        device = 0 if cuda_available else "cpu"
+        
+        # CRITICAL FIX: Set device correctly
+        if cuda_available:
+            device = 0  # Use GPU 0
+            model.to(device)  # Move model to GPU
+            logger.info(f"Model moved to GPU: {device}")
+        else:
+            device = "cpu"
+            logger.info("Using CPU for inference")
 
+        # Optimize for GPU
         if cuda_available:
             torch.backends.cudnn.benchmark = True
             torch.backends.cudnn.deterministic = False
+            torch.backends.cudnn.enabled = True
 
         # Configure model for faster inference
         model.conf = 0.5
@@ -121,6 +133,10 @@ try:
         model.max_det = 50
 
         logger.info("Model loaded successfully")
+        
+        # Add verification
+        if model and torch.cuda.is_available():
+            logger.info(f"Model is on device: {next(model.model.parameters()).device}")
     else:
         logger.error("Model file not found, running without AI detection")
 
@@ -260,17 +276,31 @@ def process_frame(frame, current_time, frame_buffer, device, model, camera_id='c
             frame_buffer.allowed_violations = get_allowed_violations()
             frame_buffer.last_check_time = time.time()
 
-        # Run detection with optimized settings
-        with torch.inference_mode():
-            results = model.predict(
-                source=frame,
-                conf=frame_buffer.min_confidence,  # Use higher confidence threshold
-                save=False,
-                device=device,
-                verbose=False,
-                stream=True,
-                classes=list(camera_config['detect'].keys())
-            )
+        # CRITICAL FIX: Use GPU for inference
+        with torch.inference_mode():  # More efficient than torch.no_grad()
+            # GPU optimization
+            if isinstance(device, int) and torch.cuda.is_available():
+                results = model.predict(
+                    source=frame,
+                    conf=frame_buffer.min_confidence,
+                    save=False,
+                    device=device,  # Explicitly specify GPU device
+                    verbose=False,
+                    stream=True,
+                    classes=list(camera_config['detect'].keys()),
+                    half=True  # Use half precision for faster inference on GPU
+                )
+            else:
+                # CPU inference
+                results = model.predict(
+                    source=frame,
+                    conf=frame_buffer.min_confidence,
+                    save=False,
+                    device=device,
+                    verbose=False,
+                    stream=True,
+                    classes=list(camera_config['detect'].keys())
+                )
             
             result = next(results)
             if result.boxes is not None and len(result.boxes) > 0:
@@ -288,42 +318,35 @@ def process_frame(frame, current_time, frame_buffer, device, model, camera_id='c
                     # Track persistent detections
                     if conf >= frame_buffer.min_confidence:
                         if cls not in frame_buffer.current_detections:
-                            # Initialize new detection tracking
                             frame_buffer.current_detections[cls] = {
                                 'frame_count': 1,
                                 'start_time': current_time_float,
                                 'confidence': conf
                             }
                         else:
-                            # Update existing detection
                             detection = frame_buffer.current_detections[cls]
                             detection['frame_count'] += 1
-                            detection['confidence'] = max(detection['confidence'], conf)  # Keep highest confidence
+                            detection['confidence'] = max(detection['confidence'], conf)
                             
-                            # Only process detection if it has been present for enough frames
                             if detection['frame_count'] >= frame_buffer.frame_threshold:
-                                # Check if enough time has passed since last detection of this class
                                 if cls in VIOLATIONS or cls in NON_VIOLATIONS:
                                     with frame_buffer.lock:
                                         if time.time() - frame_buffer.last_detection_time >= frame_buffer.detection_cooldown:
                                             frame_buffer.last_detection_time = current_time_float
                                             Thread(target=handle_detection, args=(cls, current_time, camera_id, detection['confidence'], frame), daemon=True).start()
                                             
-                                            # Reset the detection after processing
                                             frame_buffer.current_detections[cls] = {
                                                 'frame_count': 0,
                                                 'start_time': current_time_float,
                                                 'confidence': conf
                                             }
                 
-                # Remove or reset detections that are no longer present
+                # Clean up stale detections
                 stale_classes = set(frame_buffer.current_detections.keys()) - current_classes
                 for cls in stale_classes:
                     if frame_buffer.current_detections[cls]['frame_count'] < frame_buffer.frame_threshold:
-                        # Remove detection if it didn't persist long enough
                         del frame_buffer.current_detections[cls]
                     else:
-                        # Reset frame count if detection is temporarily lost
                         frame_buffer.current_detections[cls]['frame_count'] = 0
             
             return result.plot() if result.boxes is not None and len(result.boxes) > 0 else frame
@@ -388,17 +411,15 @@ def handle_detection(cls, current_time, camera_id, confidence, frame):
         logger.error(f"Error handling detection: {e}")
 
 def generate_frames(video_file_path, camera_id='camera1'):
-    """Generate frames from a specific video file"""
+    """Generate frames from a specific video file with GPU optimization"""
     cap = None
     frame_buffer = FrameBuffer()
     
     try:
-        # Initialize video capture for the specific file
         cap = cv2.VideoCapture(video_file_path)
         
         if not cap.isOpened():
             logger.error(f"Could not open video file: {video_file_path}")
-            # Return error frame
             error_frame = create_error_image(f"Video not found: {camera_id}")
             _, buffer = cv2.imencode('.jpg', error_frame)
             frame_bytes = buffer.tobytes()
@@ -406,40 +427,61 @@ def generate_frames(video_file_path, camera_id='camera1'):
                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
             return
 
-        # Optimize video settings
+        # Optimize video capture settings
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        logger.info(f"Starting video stream for {camera_id}: {video_file_path}")
+        cap.set(cv2.CAP_PROP_FPS, 30)  # Set target FPS
+        
+        # Get video properties for optimization
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_delay = 1.0 / fps if fps > 0 else 1.0 / 30.0
+        
+        logger.info(f"Starting video stream for {camera_id}: {video_file_path} at {fps} FPS")
+        
+        last_process_time = time.time()
         
         while True:
             try:
                 current_time = datetime.now()
                 
-                # Update allowed violations in separate thread
+                # Update allowed violations less frequently
                 if time.time() - frame_buffer.last_check_time > frame_buffer.check_interval:
                     Thread(target=lambda: setattr(frame_buffer, 'allowed_violations', get_allowed_violations()), daemon=True).start()
                     frame_buffer.last_check_time = time.time()
 
                 success, frame = cap.read()
                 if not success:
-                    # Loop video
                     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     continue
 
-                # Resize frame
-                frame = cv2.resize(frame, (854, 480))
+                # Resize frame efficiently
+                frame = cv2.resize(frame, (854, 480), interpolation=cv2.INTER_LINEAR)
                 
-                # Process frame with model
+                # Process frame with GPU optimization
+                current_process_time = time.time()
                 annotated_frame = process_frame(frame, current_time, frame_buffer, device, model, camera_id)
+                process_duration = time.time() - current_process_time
                 
-                # Encode frame
-                _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                # Log processing time for monitoring (optional)
+                if process_duration > 0.1:  # Log if processing takes more than 100ms
+                    logger.debug(f"Frame processing took {process_duration:.3f}s on {device}")
+                
+                # Encode frame with optimized settings
+                encode_params = [cv2.IMWRITE_JPEG_QUALITY, 85]
+                if torch.cuda.is_available():
+                    encode_params.extend([cv2.IMWRITE_JPEG_OPTIMIZE, 1])
+                
+                _, buffer = cv2.imencode('.jpg', annotated_frame, encode_params)
                 frame_bytes = buffer.tobytes()
 
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-                # Small delay for smoother streaming
-                time.sleep(0.03)
+                # Dynamic frame delay based on processing time
+                elapsed = time.time() - last_process_time
+                sleep_time = max(0, frame_delay - elapsed)
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                last_process_time = time.time()
 
             except GeneratorExit:
                 logger.info(f"Client disconnected from {camera_id}")
@@ -459,7 +501,7 @@ def generate_frames(video_file_path, camera_id='camera1'):
         if cap is not None:
             cap.release()
             logger.info(f"Released video capture for {camera_id}")
-
+            
 def create_error_image(message):
     """Create an error image with the given message"""
     img = np.zeros((480, 854, 3), np.uint8)
@@ -657,6 +699,27 @@ async def delete_frame(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/gpu-status")
+async def gpu_status():
+    """Get detailed GPU status and utilization"""
+    if not torch.cuda.is_available():
+        return {"gpu_available": False, "message": "CUDA not available"}
+    
+    try:
+        gpu_info = {
+            "gpu_available": True,
+            "gpu_count": torch.cuda.device_count(),
+            "current_device": torch.cuda.current_device(),
+            "device_name": torch.cuda.get_device_name(0),
+            "memory_allocated": torch.cuda.memory_allocated(0) / 1024**3,  # GB
+            "memory_cached": torch.cuda.memory_reserved(0) / 1024**3,  # GB
+            "memory_total": torch.cuda.get_device_properties(0).total_memory / 1024**3,  # GB
+            "model_device": str(next(model.model.parameters()).device) if model else "N/A"
+        }
+        return gpu_info
+    except Exception as e:
+        return {"gpu_available": True, "error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

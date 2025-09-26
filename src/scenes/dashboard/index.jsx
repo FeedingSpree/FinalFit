@@ -37,12 +37,79 @@ const VIOLATION_DISPLAY_NAMES = {
 };
 
 const Dashboard = () => {
+  // ============================================================
+// PASTE THIS INSIDE YOUR Dashboard COMPONENT
+// Location: After your existing functions (formatData, calculateViolationsRatio, etc.)
+// But BEFORE the return statement
+// ============================================================
+
+// Add this Firebase verification function
+const verifyFirebaseCollections = async () => {
+  console.log('=== FIREBASE FIRESTORE VERIFICATION STARTED ===');
+  
+  try {
+    console.log('🔍 Testing violation logs service...');
+    const violationLogs = await getViolationLogs();
+    console.log('✅ Violation Logs Response:', {
+      count: violationLogs?.length || 0,
+      sample: violationLogs?.[0] || 'No data',
+      collection: 'violationLogs (assumed)',
+      sampleId: violationLogs?.[0]?.id
+    });
+
+    console.log('🔍 Testing review logs service...');
+    const reviewLogs = await getReviewLogs();
+    console.log('✅ Review Logs Response:', {
+      count: reviewLogs?.length || 0,
+      sample: reviewLogs?.[0] || 'No data',
+      collection: 'reviewLogs (assumed)',
+      statusValues: [...new Set(reviewLogs?.map(log => log.status) || [])],
+      sampleId: reviewLogs?.[0]?.id
+    });
+
+    console.log('🔍 Testing detection logs service...');
+    const detectionLogs = await getDetectionLogs();
+    console.log('✅ Detection Logs Response:', {
+      count: detectionLogs?.length || 0,
+      sample: detectionLogs?.[0] || 'No data',
+      collection: 'detectionLogs (assumed)',
+      detectionTypes: [...new Set(detectionLogs?.map(log => log.detection) || [])],
+      sampleId: detectionLogs?.[0]?.id
+    });
+
+    console.log('🔍 Testing calendar events service...');
+    const calendarEvents = await getCalendarEvents();
+    console.log('✅ Calendar Events Response:', {
+      count: calendarEvents?.length || 0,
+      sample: calendarEvents?.[0] || 'No data',
+      collection: 'calendarEvents (assumed)',
+      sampleId: calendarEvents?.[0]?.id
+    });
+
+    console.log('=== FIREBASE VERIFICATION COMPLETED ===');
+    
+  } catch (error) {
+    console.error('❌ Firebase verification failed:', error);
+    console.error('Check Firebase configuration and rules');
+  }
+};
+
+// Add this Firebase auth verification function
+const verifyFirebaseAuth = () => {
+  console.log('=== FIREBASE AUTH VERIFICATION ===');
+  
+  const user = JSON.parse(sessionStorage.getItem("user") || '{}');
+  console.log('Current user from session:', user);
+  console.log('=== AUTH VERIFICATION COMPLETED ===');
+};
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [violations, setViolations] = useState([]);
   const [detections, setDetections] = useState([]);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [reviewLogs, setReviewLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
   const [timeframe, setTimeframe] = useState("week");
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
@@ -506,39 +573,38 @@ const Dashboard = () => {
     })}`;
   };
 
-  const calculatePercentageChange = () => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    
-    const todayViolations = reviewLogs.filter(log => 
-      log.date === todayStr && 
-      log.status === 'Confirmed'
-    ).length;
-    
-    const yesterdayViolations = reviewLogs.filter(log => 
-      log.date === yesterdayStr && 
-      log.status === 'Confirmed'
-    ).length;
+const calculatePercentageChange = () => {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const todayStr = today.toISOString().split('T')[0];
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  
+  // Use violations state instead of reviewLogs
+  const todayViolations = violations.filter(violation => 
+    violation.date === todayStr
+  ).length;
+  
+  const yesterdayViolations = violations.filter(violation => 
+    violation.date === yesterdayStr
+  ).length;
 
-    if (yesterdayViolations === 0) {
-      return {
-        percent: todayViolations > 0 ? 100 : 0,
-        increased: todayViolations > 0,
-        difference: todayViolations
-      };
-    }
-
-    const percentChange = ((todayViolations - yesterdayViolations) / yesterdayViolations) * 100;
+  if (yesterdayViolations === 0) {
     return {
-      percent: Math.abs(Math.round(percentChange)),
-      increased: percentChange > 0,
-      difference: Math.abs(todayViolations - yesterdayViolations)
+      percent: todayViolations > 0 ? 100 : 0,
+      increased: todayViolations > 0,
+      difference: todayViolations
     };
+  }
+
+  const percentChange = ((todayViolations - yesterdayViolations) / yesterdayViolations) * 100;
+  return {
+    percent: Math.abs(Math.round(percentChange)),
+    increased: percentChange > 0,
+    difference: Math.abs(todayViolations - yesterdayViolations)
   };
+};
 
   // Update the calculateUniformPercentageChange function similarly
   const calculateUniformPercentageChange = (detections) => {
@@ -612,27 +678,57 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [violationLogs, detectionLogs, events, reviewData] = await Promise.all([
-          getViolationLogs(),
-          getDetectionLogs(),
-          getCalendarEvents(),
-          getReviewLogs()
-        ]);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [violationLogs, detectionLogs, events, reviewData] = await Promise.all([
+        getViolationLogs(),
+        getDetectionLogs(),
+        getCalendarEvents(),
+        getReviewLogs()
+      ]);
 
-        const confirmedViolations = reviewData.filter(log => log.status === 'Confirmed');
-        
-        setViolations(confirmedViolations);
-        setDetections(detectionLogs);
-        setCalendarEvents(events);
-        setReviewLogs(reviewData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-    fetchData();
-  }, []);
+      console.log('Raw review data:', reviewData); // Debug log
+      const validStatuses = ["Confirmed", "Pending"];
+      const confirmedViolations = reviewData.filter(log =>
+  validStatuses.includes(log.status)
+);
+setViolations(confirmedViolations);
+      console.log('Confirmed violations:', confirmedViolations); // Debug log
+      
+      setViolations(confirmedViolations);
+      setDetections(detectionLogs);
+      setCalendarEvents(events);
+      setReviewLogs(reviewData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchData();
+}, []);
+
+// Add this useEffect AFTER your main data fetching useEffect
+useEffect(() => {
+  // Run Firebase verification in development
+  if (process.env.NODE_ENV === 'development') {
+    setTimeout(() => {
+      verifyFirebaseCollections();
+    }, 3000); // Wait 3 seconds for data to load
+  }
+}, []);
+  useEffect(() => {
+  console.log('=== DEBUG INFO ===');
+  console.log('Current violations state:', violations);
+  console.log('Current date range:', dateRange);
+  console.log('Formatted data for chart:', formatData());
+  console.log('Violations ratio data:', calculateViolationsRatio());
+  console.log('==================');
+}, [violations, dateRange]);
 
   // Add this helper function
   const isDateInRange = (date) => {
@@ -653,81 +749,110 @@ const Dashboard = () => {
   };
 
   // Update the formatData function
-  const formatData = () => {
-    const start = new Date(dateRange.startDate);
-    const end = new Date(dateRange.endDate);
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+const formatData = () => {
+  const start = new Date(dateRange.startDate);
+  const end = new Date(dateRange.endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
 
-    const dates = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dates.push(new Date(d));
-    }
+  const dates = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(new Date(d));
+  }
 
-    return dates.map(date => {
-      const dateStr = date.toISOString().split('T')[0];
-      const dayViolations = reviewLogs.filter(log => 
-        log.date === dateStr && 
-        log.status === 'Confirmed'
-      );
+  return dates.map(date => {
+    const dateStr = date.toISOString().split('T')[0];
+    
+    // Fix: Use violations state instead of reviewLogs
+    const dayViolations = violations.filter(violation => 
+      violation.date === dateStr
+    );
 
-      return {
-        name: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        cap: dayViolations.filter(v => v.violation?.toLowerCase().includes('cap')).length,
-        shorts: dayViolations.filter(v => v.violation?.toLowerCase().includes('shorts')).length,
-        no_sleeves: dayViolations.filter(v => v.violation?.toLowerCase().includes('sleeve')).length
-      };
-    });
-  };
+    // Fix: Improve violation type detection
+    const capViolations = dayViolations.filter(v => {
+      const violationType = (v.violation || '').toLowerCase();
+      return violationType.includes('cap') || violationType.includes('hat');
+    }).length;
+
+    const shortsViolations = dayViolations.filter(v => {
+      const violationType = (v.violation || '').toLowerCase();
+      return violationType.includes('shorts') || violationType.includes('short');
+    }).length;
+
+    const sleevelessViolations = dayViolations.filter(v => {
+      const violationType = (v.violation || '').toLowerCase();
+      return violationType.includes('sleeve') || violationType.includes('sleeveless') || violationType.includes('no sleeve');
+    }).length;
+
+    return {
+      name: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      cap: capViolations,
+      shorts: shortsViolations,
+      no_sleeves: sleevelessViolations
+    };
+  });
+};
 
   // PIE CHART
   const calculateViolationsRatio = () => {
-    const confirmedViolations = reviewLogs.filter(log => 
-      isDateInRange(log.date) && 
-      log.status === 'Confirmed'
-    );
+  // Use violations state instead of reviewLogs
+  const filteredViolations = violations.filter(violation => 
+    isDateInRange(violation.date)
+  );
 
-    const totals = confirmedViolations.reduce((acc, log) => {
-      const type = log.violation?.toLowerCase() || '';
-      if (type.includes('cap')) acc.Cap = (acc.Cap || 0) + 1;
-      if (type.includes('shorts')) acc.Shorts = (acc.Shorts || 0) + 1;
-      if (type.includes('sleeve')) acc.Sleeveless = (acc.Sleeveless || 0) + 1;
-      return acc;
-    }, {});
+  const totals = filteredViolations.reduce((acc, violation) => {
+    const type = (violation.violation || '').toLowerCase();
+    if (type.includes('cap') || type.includes('hat')) {
+      acc.Cap = (acc.Cap || 0) + 1;
+    }
+    if (type.includes('shorts') || type.includes('short')) {
+      acc.Shorts = (acc.Shorts || 0) + 1;
+    }
+    if (type.includes('sleeve') || type.includes('sleeveless')) {
+      acc.Sleeveless = (acc.Sleeveless || 0) + 1;
+    }
+    return acc;
+  }, {});
 
-    const COLORS = ['#8884d8', '#82ca9d', '#ff6b6b'];
-    
-    return Object.entries(totals)
-      .map(([type, value], index) => ({
-        name: type,
-        value,
-        color: COLORS[index]
-      }))
-      .filter(entry => entry.value > 0);
-  };
+  const COLORS = ['#8884d8', '#82ca9d', '#ff6b6b'];
+  
+  return Object.entries(totals)
+    .map(([type, value], index) => ({
+      name: type,
+      value,
+      color: COLORS[index]
+    }))
+    .filter(entry => entry.value > 0);
+};
   // BAR CHART
-  const calculateViolationRanking = () => {
-    const confirmedViolations = reviewLogs.filter(log => 
-      isDateInRange(log.date) && 
-      log.status === 'Confirmed'
-    );
+const calculateViolationRanking = () => {
+  // Use violations state instead of reviewLogs
+  const filteredViolations = violations.filter(violation => 
+    isDateInRange(violation.date)
+  );
 
-    const totals = confirmedViolations.reduce((acc, log) => {
-      const type = log.violation?.toLowerCase() || '';
-      if (type.includes('cap')) acc.Cap = (acc.Cap || 0) + 1;
-      if (type.includes('shorts')) acc.Shorts = (acc.Shorts || 0) + 1;
-      if (type.includes('sleeve')) acc.Sleeveless = (acc.Sleeveless || 0) + 1;
-      return acc;
-    }, {});
+  const totals = filteredViolations.reduce((acc, violation) => {
+    const type = (violation.violation || '').toLowerCase();
+    if (type.includes('cap') || type.includes('hat')) {
+      acc.Cap = (acc.Cap || 0) + 1;
+    }
+    if (type.includes('shorts') || type.includes('short')) {
+      acc.Shorts = (acc.Shorts || 0) + 1;
+    }
+    if (type.includes('sleeve') || type.includes('sleeveless')) {
+      acc.Sleeveless = (acc.Sleeveless || 0) + 1;
+    }
+    return acc;
+  }, {});
 
-    return Object.entries(totals)
-      .map(([type, value]) => ({
-        name: type,
-        value
-      }))
-      .filter(entry => entry.value > 0)
-      .sort((a, b) => b.value - a.value);
-  };
+  return Object.entries(totals)
+    .map(([type, value]) => ({
+      name: type,
+      value
+    }))
+    .filter(entry => entry.value > 0)
+    .sort((a, b) => b.value - a.value);
+};
 
   const calculateUniformDetections = () => {
     const filteredDetections = detections.filter(d => isDateInRange(d.date));
@@ -817,6 +942,8 @@ const Dashboard = () => {
   };
 
   return (
+    
+    
     <Box m="30px">
       {/* HEADER */}
       <Box display="flex" justifyContent="space-between" alignItems="center" paddingBottom={"20px"}>
@@ -882,6 +1009,23 @@ const Dashboard = () => {
           <DownloadOutlinedIcon sx={{ mr: "10px" }} />
             Download Reports
           </Button>
+          {/* Add this temporary debug button */}
+<Button
+  sx={{
+    backgroundColor: '#ff4444',
+    color: 'white',
+    fontSize: "14px",
+    fontWeight: "bold",
+    padding: "10px 20px",
+    marginLeft: "10px",
+    "&:hover": {
+      backgroundColor: '#cc0000',
+    },
+  }}
+  onClick={() => verifyFirebaseCollections()}
+>
+  🔍 Test Firebase
+</Button>
         </Box>
       </Box>
       {/* GRID & CHARTS */}
@@ -1184,7 +1328,7 @@ const Dashboard = () => {
                           fontSize: '20px',
                           fontWeight: 'medium',
                           opacity: 0.7
-                        }}
+                        }} 
                       >
                         ({change.increased ? '+' : '-'}{change.difference})
                       </Typography>
@@ -1214,13 +1358,14 @@ const Dashboard = () => {
                 <LineChart data={formatData()} margin={{ top: 5, right: 30, left: 20, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.8} />
                   <XAxis 
-                    dataKey="name"
-                    angle={-45}
-                    textAnchor="end"
-                    height={70}
-                    interval={0}
-                    tick={{ fontSize: 12 }}
-                  />
+  dataKey="name"
+  angle={-45}
+  textAnchor="end"
+  height={70}
+  interval={Math.max(0, Math.floor(formatData().length / 10))} // Dynamic interval
+  tick={{ fontSize: 10 }}
+  tickMargin={5}
+/>
                   <YAxis />
                   <Tooltip 
                     formatter={(value, name) => [
@@ -1381,5 +1526,7 @@ const Dashboard = () => {
     </Box>
   );
 };
+
+
 
 export default Dashboard;
