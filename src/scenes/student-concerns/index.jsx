@@ -305,27 +305,36 @@ const StudentConcerns = () => {
           >
             <Box display="flex" gap={2}>
               <TextField
-                label="Student ID *"
-                value={formData.studentId}
-                onChange={(e) => handleInputChange('studentId', e.target.value)}
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    color: colors.grey[100],
-                    '& fieldset': {
-                      borderColor: colors.grey[400],
-                    },
-                    '&:hover fieldset': {
-                      borderColor: colors.grey[300],
-                    },
+              placeholder="Enter Student ID"
+              
+              value={formData.studentId}
+              onChange={(e) => handleInputChange('studentId', e.target.value)}
+              fullWidth
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  color: colors.grey[100],
+                  '& fieldset': {
+                    borderColor: colors.grey[400],
                   },
-                  '& .MuiInputLabel-root': {
-                    color: colors.grey[300],
+                  '&:hover fieldset': {
+                    borderColor: colors.grey[300],
                   },
-                }}
-              />
+                },
+                '& .MuiInputLabel-root': {
+                  color: 'black !important',  // Force black label
+                },
+                '& .MuiInputLabel-root.Mui-focused': {
+                  color: 'black !important',  // Keep black even when focused
+                },
+                '& input::placeholder': {
+                  color: 'black',      // force placeholder to black
+                  opacity: 1           // ensure it’s visible
+                },
+              }}
+            />
+
               <TextField
-                label="Full Name *"
+                placeholder="Full Name"
                 value={formData.studentName}
                 onChange={(e) => handleInputChange('studentName', e.target.value)}
                 fullWidth
@@ -341,7 +350,10 @@ const StudentConcerns = () => {
                   },
                   '& .MuiInputLabel-root': {
                     color: colors.grey[300],
-                  },
+                  },'& input::placeholder': {
+                  color: 'black',      // force placeholder to black
+                  opacity: 1           // ensure it’s visible
+                },
                 }}
               />
             </Box>
@@ -350,7 +362,7 @@ const StudentConcerns = () => {
               <InputLabel sx={{ color: colors.grey[300] }}>Category *</InputLabel>
               <Select
                 value={formData.category}
-                label="Category *"
+                placeholder="Category"
                 onChange={(e) => handleInputChange('category', e.target.value)}
                 sx={{
                   color: colors.grey[100],
@@ -362,7 +374,10 @@ const StudentConcerns = () => {
                   },
                   '& .MuiSelect-icon': {
                     color: colors.grey[100],
-                  },
+                  },'& input::placeholder': {
+                  color: 'black',      // force placeholder to black
+                  opacity: 1           // ensure it’s visible
+                },
                 }}
               >
                 {categories.map((category) => (
@@ -374,7 +389,7 @@ const StudentConcerns = () => {
             </FormControl>
 
             <TextField
-              label="Description *"
+              
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               multiline
@@ -393,6 +408,10 @@ const StudentConcerns = () => {
                 },
                 '& .MuiInputLabel-root': {
                   color: colors.grey[300],
+                },
+                '& input::placeholder': {
+                  color: 'black',      // force placeholder to black
+                  opacity: 1           // ensure it’s visible
                 },
               }}
             />

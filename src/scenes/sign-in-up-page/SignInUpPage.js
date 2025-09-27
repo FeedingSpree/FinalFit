@@ -104,6 +104,8 @@ function SignInUpPage() {
         // Redirect based on user role
         if (user.loa === "SOHAS") {
           navigate("/live-feed");
+        }else if (user.loa === "STUDENT"){
+          navigate("/student-concerns")
         } else {
           navigate("/dashboard");
         }
