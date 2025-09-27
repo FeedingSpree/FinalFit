@@ -11,6 +11,8 @@ import UserLogs from "./scenes/user logs";
 import LiveFeed from "./scenes/Live Feed"; // Import the Live Feed page
 import SignInUpPage from "./scenes/sign-in-up-page/SignInUpPage"; // Import SignInUpPage component
 import ViolationHandling from "./scenes/violation handling"; // Add this import
+import StudentConcerns from "./scenes/student-concerns";
+import StudentConcernsManagement from "./scenes/student-concerns-management";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { ColorModeContext, useMode } from "./theme";
 import { DetectionProvider } from "./context/DetectionContext";
@@ -63,6 +65,11 @@ function App() {
                           <ViolationHandling />
                         </ProtectedRoute>
                       } />
+                      <Route path="/student-concerns-management" element={
+                        <ProtectedRoute allowedRoles={["OSA"]}>
+                          <StudentConcernsManagement />
+                        </ProtectedRoute>
+                      } />
 
                       {/* Shared Routes (OSA & SOHAS) */}
                       <Route path="/live-feed" element={
@@ -81,8 +88,15 @@ function App() {
                         </ProtectedRoute>
                       } />
                       <Route path="/faq" element={
-                        <ProtectedRoute allowedRoles={["OSA", "SOHAS"]}>
+                        <ProtectedRoute allowedRoles={["OSA", "SOHAS", "STUDENT"]}>
                           <FAQ />
+                        </ProtectedRoute>
+                      } />
+
+                      {/* Student Only Routes */}
+                      <Route path="/student-concerns" element={
+                        <ProtectedRoute allowedRoles={["STUDENT"]}>
+                          <StudentConcerns />
                         </ProtectedRoute>
                       } />
                     </Routes>

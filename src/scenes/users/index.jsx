@@ -899,6 +899,7 @@ const Users = () => {
                 >
                   <MenuItem value="OSA">OSA</MenuItem>
                   <MenuItem value="SOHAS">SOHAS</MenuItem>
+                  <MenuItem value="STUDENT">STUDENT</MenuItem>
                 </Select>
               </div>
             </div>

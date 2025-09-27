@@ -15,6 +15,8 @@ import MenuOutlinedIcon from "@mui/icons-material/MenuOutlined";
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import AnalyticsOutlinedIcon from '@mui/icons-material/AnalyticsOutlined';
 import HistoryEduOutlinedIcon from '@mui/icons-material/HistoryEduOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import { getUsers } from "../../services/userService.ts";
 import { addUserLog } from "../../services/userLogsService.ts";
 import { getReviewLogs } from "../../services/reviewLogsService.ts";
@@ -105,7 +107,9 @@ const Sidebar = ({ isSidebar }) => {
       '/policies': 'Policies',
       '/detectionlogs': 'Detections',
       '/audittrails': 'Audit Trails',
-      '/violations': 'Violations', // Add this
+      '/violations': 'Violations',
+      '/student-concerns-management': 'Student Concerns',
+      '/student-concerns': 'My Concerns',
       '/calendar': 'Calendar',
       '/faq': 'FAQ Page'
     };
@@ -122,7 +126,9 @@ const Sidebar = ({ isSidebar }) => {
       '/policies': 'Policies',
       '/detectionlogs': 'Detections',
       '/audittrails': 'Audit Trails',
-      '/violations': 'Violations', // Add this
+      '/violations': 'Violations',
+      '/student-concerns-management': 'Student Concerns',
+      '/student-concerns': 'My Concerns',
       '/calendar': 'Calendar',
       '/faq': 'FAQ Page'
     };
@@ -221,6 +227,7 @@ const Sidebar = ({ isSidebar }) => {
       { title: "Policies", to: "/policies", icon: <ContactsOutlinedIcon /> },
       //{ title: "Detections", to: "/detectionlogs", icon: <ReceiptOutlinedIcon />, count: pendingCount },
       { title: "Violations", to: "/violations", icon: <HistoryEduOutlinedIcon /> },
+      { title: "Student Concerns", to: "/student-concerns-management", icon: <AssignmentOutlinedIcon /> },
       { title: "Audit Trails", to: "/audittrails", icon: <RecentActorsOutlinedIcon /> },
       { title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
       { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
@@ -229,6 +236,10 @@ const Sidebar = ({ isSidebar }) => {
       { title: "Live Feed", to: "/live-feed", icon: <CameraAltOutlinedIcon />, showAlert: true },
       { title: "Detections", to: "/detectionlogs", icon: <ReceiptOutlinedIcon />, count: pendingCount },
       //{ title: "Calendar", to: "/calendar", icon: <CalendarTodayOutlinedIcon /> },
+      { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
+    ],
+    STUDENT: [
+      { title: "My Concerns", to: "/student-concerns", icon: <ReportProblemOutlinedIcon /> },
       { title: "FAQ Page", to: "/faq", icon: <HelpOutlineOutlinedIcon /> }
     ]
   };
