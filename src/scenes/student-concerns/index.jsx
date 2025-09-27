@@ -36,6 +36,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 const StudentConcerns = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+
+  const user = JSON.parse(sessionStorage.getItem('user')); // ✅ define first
+
   const [concerns, setConcerns] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,32 +49,44 @@ const StudentConcerns = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    studentId: '',
-    studentName: '',
+    studentId: user?.user_id || '',   // ✅ now safe
+    studentName: `${user?.first_name || ''} ${user?.last_name || ''}`,
     category: '',
     description: '',
     photoUrl: ''
   });
 
+  const resetForm = () => {
+    setFormData({
+      studentId: user?.user_id || '',
+      studentName: `${user?.first_name || ''} ${user?.last_name || ''}`,
+      category: '',
+      description: '',
+      photoUrl: ''
+    });
+  };
+
+
+
   const categories = getConcernCategories();
-  const user = JSON.parse(sessionStorage.getItem('user'));
 
   useEffect(() => {
     fetchConcerns();
   }, []);
 
-  const fetchConcerns = async () => {
-    try {
-      setLoading(true);
-      const userConcerns = await getStudentConcernsByStudent(user?.username || '');
-      setConcerns(userConcerns);
-    } catch (error) {
-      console.error("Error fetching concerns:", error);
-      showSnackbar('Error fetching concerns', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchConcerns = async () => {
+  try {
+    setLoading(true);
+    const userConcerns = await getStudentConcernsByStudent(user?.user_id || ''); // fixed
+    setConcerns(userConcerns);
+  } catch (error) {
+    console.error("Error fetching concerns:", error);
+    showSnackbar('Error fetching concerns', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const showSnackbar = (message, severity = 'success') => {
     setSnackbarMessage(message);
@@ -80,35 +95,37 @@ const StudentConcerns = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.studentId || !formData.studentName || !formData.category || !formData.description) {
-      showSnackbar('Please fill in all required fields', 'error');
-      return;
-    }
+  if (!formData.studentId || !formData.studentName || !formData.category || !formData.description) {
+    showSnackbar('Please fill in all required fields', 'error');
+    return;
+  }
 
-    try {
-      setLoading(true);
-      await addStudentConcern(formData);
-      showSnackbar('Concern submitted successfully!');
-      setOpenDialog(false);
-      resetForm();
-      fetchConcerns();
-    } catch (error) {
-      console.error("Error submitting concern:", error);
-      showSnackbar('Error submitting concern', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
 
-  const resetForm = () => {
-    setFormData({
-      studentId: '',
-      studentName: '',
-      category: '',
-      description: '',
-      photoUrl: ''
-    });
-  };
+    const concernToSave = {
+      ...formData,
+      status: 'Pending',
+      dateSubmitted: new Date().toLocaleDateString(),
+      timeSubmitted: new Date().toLocaleTimeString(),
+    };
+
+    await addStudentConcern(concernToSave);
+
+    showSnackbar('Concern submitted successfully!');
+    setOpenDialog(false);
+    resetForm();
+    fetchConcerns();
+  } catch (error) {
+    console.error("Error submitting concern:", error);
+    showSnackbar('Error submitting concern', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+ 
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
