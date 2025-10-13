@@ -25,7 +25,7 @@ import shutil
 # Initialize Firebase Admin SDK (only if not already initialized)
 if not firebase_admin._apps:
     try:
-        cred = credentials.Certificate(r"C:\Users\Fred\Downloads\c2-project-020325\c2-project-020325\src\model\campusfit-557ab-firebase-adminsdk-fbsvc-1eb3edef87.json")
+        cred = credentials.Certificate(r"C:\Users\Fred\Downloads\c2-project-020325\c2-project-020325\src\model\campusfit-557ab-8ac37dc714ad.json")
         firebase_admin.initialize_app(cred)
         print("Firebase initialized successfully")
     except Exception as e:
@@ -650,6 +650,26 @@ async def camera6_stream():
     except Exception as e:
         logger.error(f"Error in camera6_stream: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+@app.get("/api/stream/webcam")
+async def webcam_stream():
+    """Stream from laptop's built-in webcam"""
+    try:
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Content-Type': 'multipart/x-mixed-replace; boundary=frame'
+        }
+        # ✅ Use 0 for the working laptop camera
+        return StreamingResponse(
+            generate_frames(0, 'webcam'),
+            media_type="multipart/x-mixed-replace; boundary=frame",
+            headers=headers
+        )
+    except Exception as e:
+        logger.error(f"Error in webcam_stream: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/status")
 async def status():

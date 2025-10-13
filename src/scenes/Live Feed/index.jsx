@@ -50,6 +50,9 @@ const MiniWebPlayer = ({ colors, buildingNumber, floorNumber, cameraNumber, sele
         return "http://localhost:5000/api/stream/camera6"; // fregunif.mp4
       case 7:
         return "http://localhost:5000/api/rtsp-stream"; // RTSP stream
+       case 8:
+  return "http://localhost:5000/api/stream/webcam"; // built-in webcam
+
       default:
         return "http://localhost:5000/api/stream/camera1";
     }
@@ -421,6 +424,8 @@ const LiveFeed = () => {
             <MenuItem value={5}>Camera 5</MenuItem>
             <MenuItem value={6}>Camera 6</MenuItem>
             <MenuItem value={7}>Camera 7</MenuItem>
+            <MenuItem value={8}>Laptop Camera</MenuItem>
+
           </Select>
         </FormControl>
 
