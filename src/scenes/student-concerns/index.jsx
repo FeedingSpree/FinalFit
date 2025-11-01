@@ -17,7 +17,9 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  Chip
+  Chip,
+  Divider,
+  Paper
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { tokens } from "../../theme.js";
@@ -32,6 +34,11 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import CategoryIcon from '@mui/icons-material/Category';
+import DescriptionIcon from '@mui/icons-material/Description';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 
 const StudentConcerns = () => {
   const theme = useTheme();
@@ -66,27 +73,24 @@ const StudentConcerns = () => {
     });
   };
 
-
-
   const categories = getConcernCategories();
 
   useEffect(() => {
     fetchConcerns();
   }, []);
 
- const fetchConcerns = async () => {
-  try {
-    setLoading(true);
-    const userConcerns = await getStudentConcernsByStudent(user?.user_id || ''); // fixed
-    setConcerns(userConcerns);
-  } catch (error) {
-    console.error("Error fetching concerns:", error);
-    showSnackbar('Error fetching concerns', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  const fetchConcerns = async () => {
+    try {
+      setLoading(true);
+      const userConcerns = await getStudentConcernsByStudent(user?.user_id || ''); // fixed
+      setConcerns(userConcerns);
+    } catch (error) {
+      console.error("Error fetching concerns:", error);
+      showSnackbar('Error fetching concerns', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const showSnackbar = (message, severity = 'success') => {
     setSnackbarMessage(message);
@@ -95,37 +99,34 @@ const StudentConcerns = () => {
   };
 
   const handleSubmit = async () => {
-  if (!formData.studentId || !formData.studentName || !formData.category || !formData.description) {
-    showSnackbar('Please fill in all required fields', 'error');
-    return;
-  }
+    if (!formData.studentId || !formData.studentName || !formData.category || !formData.description) {
+      showSnackbar('Please fill in all required fields', 'error');
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const concernToSave = {
-      ...formData,
-      status: 'Pending',
-      dateSubmitted: new Date().toLocaleDateString(),
-      timeSubmitted: new Date().toLocaleTimeString(),
-    };
+      const concernToSave = {
+        ...formData,
+        status: 'Pending',
+        dateSubmitted: new Date().toLocaleDateString(),
+        timeSubmitted: new Date().toLocaleTimeString(),
+      };
 
-    await addStudentConcern(concernToSave);
+      await addStudentConcern(concernToSave);
 
-    showSnackbar('Concern submitted successfully!');
-    setOpenDialog(false);
-    resetForm();
-    fetchConcerns();
-  } catch (error) {
-    console.error("Error submitting concern:", error);
-    showSnackbar('Error submitting concern', 'error');
-  } finally {
-    setLoading(false);
-  }
-};
-
-
- 
+      showSnackbar('Concern submitted successfully!');
+      setOpenDialog(false);
+      resetForm();
+      fetchConcerns();
+    } catch (error) {
+      console.error("Error submitting concern:", error);
+      showSnackbar('Error submitting concern', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -290,7 +291,7 @@ const StudentConcerns = () => {
         />
       </Box>
 
-      {/* Submit Concern Dialog */}
+      {/* Submit Concern Dialog - COLOR ONLY CHANGES (kept sizes/layout) */}
       <Dialog 
         open={openDialog} 
         onClose={() => {
@@ -301,181 +302,360 @@ const StudentConcerns = () => {
         fullWidth
         PaperProps={{
           sx: {
-            backgroundColor: colors.grey[900],
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.1)',
+            overflow: 'visible'
           }
         }}
       >
-        <DialogTitle sx={{ color: colors.grey[100], fontSize: '24px', fontWeight: 'bold' }}>
-          Submit New Concern
-        </DialogTitle>
-        <DialogContent>
-          <Box
-            component="form"
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 3,
-              padding: '20px',
+        {/* Header Section: color changed to black + gold accent */}
+        <Box sx={{ 
+          background: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)',
+          padding: '32px',
+          position: 'relative',
+          borderBottom: '4px solid #ffd700'
+        }}>
+          <IconButton
+            onClick={() => {
+              setOpenDialog(false);
+              resetForm();
             }}
-            noValidate
-            autoComplete="off"
+            sx={{
+              position: 'absolute',
+              right: 16,
+              top: 16,
+              color: '#ffd700',
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 215, 0, 0.12)',
+              }
+            }}
           >
-            <Box display="flex" gap={2}>
-              <TextField
-              placeholder="Enter Student ID"
-              
-              value={formData.studentId}
-              onChange={(e) => handleInputChange('studentId', e.target.value)}
-              fullWidth
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  color: colors.grey[100],
-                  '& fieldset': {
-                    borderColor: colors.grey[400],
-                  },
-                  '&:hover fieldset': {
-                    borderColor: colors.grey[300],
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: 'black !important',  // Force black label
-                },
-                '& .MuiInputLabel-root.Mui-focused': {
-                  color: 'black !important',  // Keep black even when focused
-                },
-                '& input::placeholder': {
-                  color: 'black',      // force placeholder to black
-                  opacity: 1           // ensure it’s visible
-                },
-              }}
-            />
+            <CloseIcon />
+          </IconButton>
+          
+          <Typography sx={{ 
+            color: '#ffd700', 
+            fontSize: '28px', 
+            fontWeight: '700',
+            marginBottom: '8px'
+          }}>
+            Submit New Concern
+          </Typography>
+          <Typography sx={{ 
+            color: '#ffffffcc', 
+            fontSize: '16px',
+            fontWeight: '400'
+          }}>
+            We're here to help address your concerns promptly
+          </Typography>
+        </Box>
 
+        <DialogContent sx={{ padding: '32px' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            
+            {/* Student Information Section */}
+            <Paper elevation={0} sx={{ 
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #e9ecef'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <PersonOutlineIcon sx={{ color: '#ffd700', mr: 1 }} />
+                <Typography sx={{ 
+                  fontSize: '16px', 
+                  fontWeight: '600',
+                  color: '#2d3748'
+                }}>
+                  Student Information
+                </Typography>
+              </Box>
+              
+              <Box display="flex" gap={2}>
+                <TextField
+                  placeholder="Student ID"
+                  value={formData.studentId}
+                  onChange={(e) => handleInputChange('studentId', e.target.value)}
+                  fullWidth
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      '& fieldset': {
+                        borderColor: '#e2e8f0',
+                        borderWidth: '2px',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: '#ffd700',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#ffd700',
+                      },
+                    },
+                    '& input': {
+                      padding: '14px 16px',
+                      fontSize: '15px',
+                      color: '#2d3748',
+                      '&::placeholder': {
+                        color: '#a0aec0',
+                        opacity: 1,
+                      }
+                    }
+                  }}
+                />
+
+                <TextField
+                  placeholder="Full Name"
+                  value={formData.studentName}
+                  onChange={(e) => handleInputChange('studentName', e.target.value)}
+                  fullWidth
+                  variant="outlined"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      '& fieldset': {
+                        borderColor: '#e2e8f0',
+                        borderWidth: '2px',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: '#ffd700',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#ffd700',
+                      },
+                    },
+                    '& input': {
+                      padding: '14px 16px',
+                      fontSize: '15px',
+                      color: '#2d3748',
+                      '&::placeholder': {
+                        color: '#a0aec0',
+                        opacity: 1,
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Paper>
+
+            {/* Category Section */}
+            <Paper elevation={0} sx={{ 
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #e9ecef'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <CategoryIcon sx={{ color: '#ffd700', mr: 1 }} />
+                <Typography sx={{ 
+                  fontSize: '16px', 
+                  fontWeight: '600',
+                  color: '#2d3748'
+                }}>
+                  Concern Category
+                </Typography>
+              </Box>
+              
+              <FormControl fullWidth>
+                <Select
+                  value={formData.category}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  displayEmpty
+                  sx={{
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e2e8f0',
+                      borderWidth: '2px',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#ffd700',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#ffd700',
+                    },
+                    '& .MuiSelect-select': {
+                      padding: '14px 16px',
+                      fontSize: '15px',
+                      color: formData.category ? '#2d3748' : '#a0aec0',
+                    }
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    <em style={{ color: '#a0aec0' }}>Select a category</em>
+                  </MenuItem>
+                  {categories.map((category) => (
+                    <MenuItem key={category} value={category}>
+                      {category}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Paper>
+
+            {/* Description Section */}
+            <Paper elevation={0} sx={{ 
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #e9ecef'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <DescriptionIcon sx={{ color: '#ffd700', mr: 1 }} />
+                <Typography sx={{ 
+                  fontSize: '16px', 
+                  fontWeight: '600',
+                  color: '#2d3748'
+                }}>
+                  Detailed Description
+                </Typography>
+              </Box>
+              
               <TextField
-                placeholder="Full Name"
-                value={formData.studentName}
-                onChange={(e) => handleInputChange('studentName', e.target.value)}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                multiline
+                rows={5}
                 fullWidth
+                placeholder="Please provide a detailed description of your concern. Include relevant dates, locations, and people involved if applicable..."
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    color: colors.grey[100],
+                    backgroundColor: 'white',
+                    borderRadius: '8px',
                     '& fieldset': {
-                      borderColor: colors.grey[400],
+                      borderColor: '#e2e8f0',
+                      borderWidth: '2px',
                     },
                     '&:hover fieldset': {
-                      borderColor: colors.grey[300],
+                      borderColor: '#ffd700',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#ffd700',
                     },
                   },
-                  '& .MuiInputLabel-root': {
-                    color: colors.grey[300],
-                  },'& input::placeholder': {
-                  color: 'black',      // force placeholder to black
-                  opacity: 1           // ensure it’s visible
-                },
+                  '& textarea': {
+                    padding: '14px 16px',
+                    fontSize: '15px',
+                    lineHeight: '1.6',
+                    color: '#2d3748',
+                    '&::placeholder': {
+                      color: '#a0aec0',
+                      opacity: 1,
+                    }
+                  }
                 }}
               />
-            </Box>
+            </Paper>
 
-            <FormControl fullWidth>
-              <InputLabel sx={{ color: colors.grey[300] }}>Category *</InputLabel>
-              <Select
-                value={formData.category}
-                placeholder="Category"
-                onChange={(e) => handleInputChange('category', e.target.value)}
-                sx={{
-                  color: colors.grey[100],
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.grey[400],
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    borderColor: colors.grey[300],
-                  },
-                  '& .MuiSelect-icon': {
-                    color: colors.grey[100],
-                  },'& input::placeholder': {
-                  color: 'black',      // force placeholder to black
-                  opacity: 1           // ensure it’s visible
-                },
-                }}
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category} value={category}>
-                    {category}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
+            {/* Attachment Section */}
+            <Paper elevation={0} sx={{ 
+              backgroundColor: '#fef9f3',
+              borderRadius: '12px',
+              padding: '24px',
+              border: '1px solid #fed7aa'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AttachFileIcon sx={{ color: '#f59e0b', mr: 1 }} />
+                <Typography sx={{ 
+                  fontSize: '16px', 
+                  fontWeight: '600',
+                  color: '#2d3748'
+                }}>
+                  Supporting Documents (Coming Soon)
+                </Typography>
+              </Box>
               
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              multiline
-              rows={4}
-              fullWidth
-              placeholder="Please describe your concern in detail..."
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  color: colors.grey[100],
-                  '& fieldset': {
-                    borderColor: colors.grey[400],
-                  },
-                  '&:hover fieldset': {
-                    borderColor: colors.grey[300],
-                  },
-                },
-                '& .MuiInputLabel-root': {
-                  color: colors.grey[300],
-                },
-                '& input::placeholder': {
-                  color: 'black',      // force placeholder to black
-                  opacity: 1           // ensure it’s visible
-                },
-              }}
-            />
-
-            <Box>
-              <Typography variant="body2" color={colors.grey[300]} mb={1}>
-                Optional: Add Photo Evidence
-              </Typography>
               <Button
                 variant="outlined"
                 startIcon={<PhotoCameraIcon />}
-                sx={{
-                  color: colors.grey[300],
-                  borderColor: colors.grey[400],
-                  '&:hover': {
-                    borderColor: colors.grey[300],
-                  },
-                }}
                 disabled
+                sx={{
+                  borderColor: '#fed7aa',
+                  color: '#92400e',
+                  backgroundColor: 'white',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  borderWidth: '2px',
+                  textTransform: 'none',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  '&:hover': {
+                    borderColor: '#f59e0b',
+                    backgroundColor: '#fef9f3',
+                  },
+                  '&.Mui-disabled': {
+                    borderColor: '#fed7aa',
+                    color: '#d97706',
+                    opacity: 0.7,
+                  }
+                }}
               >
-                Upload Photo (Feature Coming Soon)
+                Upload Photo Evidence (Coming Soon)
               </Button>
-            </Box>
+              <Typography sx={{ 
+                mt: 1.5, 
+                fontSize: '13px', 
+                color: '#92400e',
+                fontStyle: 'italic'
+              }}>
+                This feature will be available in the next update
+              </Typography>
+            </Paper>
+
           </Box>
         </DialogContent>
-        <DialogActions sx={{ padding: '20px' }}>
+
+        {/* Footer Actions (color only) */}
+        <DialogActions sx={{ 
+          padding: '24px 32px',
+          backgroundColor: '#f8f9fa',
+          borderTop: '4px solid #ffd700'
+        }}>
           <Button 
             onClick={() => {
               setOpenDialog(false);
               resetForm();
-            }} 
-            sx={{ color: colors.grey[100] }}
+            }}
+            sx={{ 
+              color: '#4a5568',
+              textTransform: 'none',
+              fontSize: '15px',
+              fontWeight: '500',
+              padding: '10px 24px',
+              borderRadius: '8px',
+              '&:hover': {
+                backgroundColor: '#e2e8f0',
+              }
+            }}
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit}
             variant="contained" 
-            disabled={loading}
+            disabled={loading || !formData.category || !formData.description}
             sx={{
-              backgroundColor: '#ffd700',
-              color: colors.grey[100],
-              fontWeight: "bold",
-              padding: "10px 20px",
-              "&:hover": {
+              background: '#ffd700',
+              color: '#000',
+              textTransform: 'none',
+              fontSize: '15px',
+              fontWeight: '600',
+              padding: '10px 32px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 14px rgba(255, 215, 0, 0.25)',
+              '&:hover': {
                 backgroundColor: '#e6c200',
+                transform: 'translateY(-1px)',
               },
+              '&.Mui-disabled': {
+                background: '#cbd5e0',
+                boxShadow: 'none',
+              },
+              transition: 'all 0.2s ease'
             }}
           >
             {loading ? 'Submitting...' : 'Submit Concern'}
