@@ -3,6 +3,20 @@ import { collection, addDoc, getDocs, updateDoc, doc, deleteDoc } from "firebase
 
 const studentRecordsCollectionRef = collection(db, "studentrecords");
 
+// ✅ Fetch all gadget requests
+export const getAllGadgetRequests = async () => {
+  const querySnapshot = await getDocs(collection(db, "gadgetRequests"));
+  return querySnapshot.docs.map((docSnap) => ({
+    id: docSnap.id,
+    ...docSnap.data(),
+  }));
+};
+
+// ✅ Update gadget request status or notes
+export const updateGadgetRequest = async (id: string, data: Record<string, any>) => {
+  const docRef = doc(db, "gadgetRequests", id);
+  await updateDoc(docRef, data);
+};
 export const addStudentRecord = async (log: {
     name: string;
     program: string;

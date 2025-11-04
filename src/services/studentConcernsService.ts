@@ -1,112 +1,161 @@
+/**
+ * studentConcernsService.ts
+ * 
+ * Handles all Firebase CRUD operations for:
+ *  - studentConcerns (add, get, update, delete)
+ *  - gadgetRequests (add, get, admin get)
+ * 
+ * Also includes helper functions and category list.
+ */
+
 import { db } from "../firebase.tsx";
-import { collection, addDoc, getDocs, updateDoc, doc, deleteDoc, Timestamp, query, where } from "firebase/firestore";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  doc, 
+  updateDoc, 
+  deleteDoc 
+} from "firebase/firestore";
 
-const collectionRef = collection(db, "studentConcerns");
+/* ===========================================
+   🎓 STUDENT CONCERNS COLLECTION
+   =========================================== */
 
-export interface StudentConcern {
-  id?: string;
-  studentId: string;
-  studentName: string;
-  category: string;
-  description: string;
-  photoUrl?: string;
-  status: 'Pending' | 'Reviewed' | 'Resolved';
-  dateSubmitted: string;
-  timeSubmitted: string;
-  reviewedBy?: string;
-  reviewDate?: string;
-  reviewNotes?: string;
-}
-
-export const addStudentConcern = async (
-  concern: Omit<StudentConcern, 'id' | 'status' | 'dateSubmitted' | 'timeSubmitted' | 'studentId' | 'studentName'>
-) => {
+/**
+ * Add a new student concern document.
+ */
+export const addStudentConcern = async (concernData: Record<string, any>) => {
   try {
-    const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-
-    const concernData: Omit<StudentConcern, 'id'> = {
-      ...concern,
-      studentId: user.user_id, // ✅ correct mapping
-      studentName: `${user.first_name || ''} ${user.last_name || ''}`.trim(), // ✅ build name
-      status: 'Pending',
-      dateSubmitted: new Date().toISOString().split('T')[0],
-      timeSubmitted: new Date().toTimeString().split(' ')[0],
-    };
-
-    const docRef = await addDoc(collectionRef, concernData);
-    return {
-      id: docRef.id,
-      ...concernData,
-    };
+    const docRef = await addDoc(collection(db, "studentConcerns"), concernData);
+    return docRef.id;
   } catch (error) {
     console.error("Error adding student concern:", error);
     throw error;
   }
 };
 
-
-
-export const getStudentConcerns = async (): Promise<StudentConcern[]> => {
+/**
+ * Get all concerns (for admin/management view).
+ */
+export const getStudentConcerns = async () => {
   try {
-    const snapshot = await getDocs(collectionRef);
+    const snapshot = await getDocs(collection(db, "studentConcerns"));
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    })) as StudentConcern[];
+    }));
   } catch (error) {
-    console.error("Error getting student concerns:", error);
-    return [];
+    console.error("Error fetching all student concerns:", error);
+    throw error;
   }
 };
 
-export const updateStudentConcern = async (id: string, updatedConcern: Partial<StudentConcern>) => {
+/**
+ * Get concerns by student ID (for student view).
+ */
+export const getStudentConcernsByStudent = async (studentId: string) => {
   try {
-    const concernRef = doc(db, "studentConcerns", id);
-    await updateDoc(concernRef, updatedConcern);
-    console.log("Student concern updated successfully");
+    const q = query(collection(db, "studentConcerns"), where("studentId", "==", studentId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error fetching student concerns:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update an existing student concern document.
+ */
+export const updateStudentConcern = async (concernId: string, updatedData: Record<string, any>) => {
+  try {
+    const docRef = doc(db, "studentConcerns", concernId);
+    await updateDoc(docRef, updatedData);
+    return true;
   } catch (error) {
     console.error("Error updating student concern:", error);
     throw error;
   }
 };
 
-export const deleteStudentConcern = async (id: string) => {
+/**
+ * Delete a student concern document.
+ */
+export const deleteStudentConcern = async (concernId: string) => {
   try {
-    const concernRef = doc(db, "studentConcerns", id);
-    await deleteDoc(concernRef);
-    console.log("Student concern deleted successfully");
+    const docRef = doc(db, "studentConcerns", concernId);
+    await deleteDoc(docRef);
+    return true;
   } catch (error) {
     console.error("Error deleting student concern:", error);
     throw error;
   }
 };
 
+/**
+ * Static list of concern categories.
+ */
+export const getConcernCategories = () => {
+  return [
+    "Facility Issue",
+    "Academic Concern",
+    "Behavioral Concern",
+    "Other",
+  ];
+};
 
-export const getStudentConcernsByStudent = async (studentId: string): Promise<StudentConcern[]> => {
+/* ===========================================
+   💻 GADGET REQUESTS COLLECTION
+   =========================================== */
+
+/**
+ * Add a new gadget request document.
+ */
+export const addGadgetRequest = async (gadgetData: Record<string, any>) => {
   try {
-    const q = query(collectionRef, where("studentId", "==", studentId));
+    const docRef = await addDoc(collection(db, "gadgetRequests"), gadgetData);
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding gadget request:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get gadget requests by student (student view).
+ */
+export const getGadgetRequestsByStudent = async (studentId: string) => {
+  try {
+    const q = query(collection(db, "gadgetRequests"), where("studentId", "==", studentId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    })) as StudentConcern[];
+    }));
   } catch (error) {
-    console.error("Error getting student concerns by student:", error);
-    return [];
+    console.error("Error fetching gadget requests:", error);
+    throw error;
   }
 };
 
-
-export const getConcernCategories = () => {
-  return [
-    'Academic Issues',
-    'Facility Problems',
-    'Dress Code Violation',
-    'Bullying/Harassment',
-    'Safety Concerns',
-    'Food Services',
-    'Transportation',
-    'Technology Issues',
-    'Other'
-  ];
+/**
+ * Get all gadget requests (admin/OSA view).
+ */
+export const getAllGadgetRequests = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, "gadgetRequests"));
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error fetching all gadget requests:", error);
+    throw error;
+  }
 };
