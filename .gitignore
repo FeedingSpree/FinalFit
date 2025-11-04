@@ -26,3 +26,5 @@ yarn-error.log*
 *.mp4
 .vscode/easycode.ignore
 src/model/campusfit-557ab-8ac37dc714ad.json
+/src/scenes/src/scenes/uploads
+/src/scenes/uploads
