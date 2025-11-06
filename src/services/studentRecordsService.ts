@@ -75,3 +75,15 @@ export const deleteStudentRecord = async (id: string) => {
         console.error("Error deleting student record: ", e);
     }
 }
+
+
+export const deleteGadgetRequest = async (id: string) => {
+  try {
+    const docRef = doc(db, "gadgetRequests", id);
+    await deleteDoc(docRef);
+    console.log("✅ Gadget permit deleted:", id);
+  } catch (error) {
+    console.error("❌ Error deleting gadget request:", error);
+    throw error;
+  }
+};

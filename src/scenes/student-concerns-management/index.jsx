@@ -226,6 +226,7 @@ const StudentConcernsManagement = () => {
   const columns = [
     { field: "studentId", headerName: "Student ID", flex: 0.8 },
     { field: "studentName", headerName: "Student Name", flex: 1 },
+    
     {
       field: "category",
       headerName: "Category",
@@ -615,7 +616,30 @@ const StudentConcernsManagement = () => {
                     </Typography>
                   </Paper>
                 </>
+               
               )}
+{/* Evidence/Image Attachment (Common) */}
+             <img
+  src={
+    selectedConcern
+      ? `http://localhost:4000${(selectedConcern.imageUrl || selectedConcern.proofImageUrl || "")
+          .replace(/^(\.\.\/)+/, "")
+          .replace(/^\/*/, "/")}`
+      : ""
+  }
+  alt="Submitted Evidence"
+  style={{
+    width: "100%",
+    height: "auto",
+    display: "block",
+    maxHeight: "400px",
+    objectFit: "contain",
+  }}
+  onError={(e) => {
+    e.target.style.display = "none"; // ⬅ hides the image if it fails to load
+  }}
+/>
+
 
               {/* Review Details (Common) */}
               {selectedConcern.reviewedBy && (

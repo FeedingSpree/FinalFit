@@ -831,25 +831,27 @@ const ViolationHandling = () => {
                     ],
                     margin: [25, 5, 10, 0]
                   },
-                  {
-                    width: 'auto',
-                    text: [
-                      { text: 'Generated on: ', fontSize: 8, color: '#666' },
-                      { 
-                        text: new Date().toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }), 
-                        fontSize: 8, 
-                        color: '#666' 
-                      }
-                    ],
-                    alignment: 'center',
-                    margin: [25, 5, 10, 0]
-                  },
+                  // This is the NEW code with hour, minute, and seconds
+{
+  width: 'auto',
+  text: [
+    { text: 'Generated on: ', fontSize: 8, color: '#666' },
+    {
+      text: new Date().toLocaleString('en-US', { // Changed to toLocaleString
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit' // Added seconds
+      }),
+      fontSize: 8,
+      color: '#666'
+    }
+  ],
+  alignment: 'center',
+  margin: [25, 5, 10, 0]
+},
                   {
                     width: 'auto',
                     text: `Page ${currentPage} of ${pageCount}`,

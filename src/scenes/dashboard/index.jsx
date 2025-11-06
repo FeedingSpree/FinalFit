@@ -328,16 +328,20 @@ const [error, setError] = useState(null);
               { canvas: [{ type: 'line', x1: 40, y1: 0, x2: 555.28, y2: 0, lineWidth: 1, lineColor: '#ffd700' }] },
               {
                 columns: [
-                  { 
-                    text: `Generated on: ${new Date().toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}`,
-                    fontSize: 8,
-                    color: '#666',
-                    margin: [40, 5, 0, 0]
-                  },
+                  // This is the NEW code with hour, minute, and seconds
+{
+  text: `Generated on: ${new Date().toLocaleString('en-US', { // Changed to toLocaleString
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit', // Added seconds
+  })}`,
+  style: 'subheader',
+  alignment: 'center',
+  margin: [0, 2, 0, 15],
+},
                   {
                     text: `Page ${currentPage} of ${pageCount}`,
                     fontSize: 8,
